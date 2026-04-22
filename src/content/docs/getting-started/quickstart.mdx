@@ -1,0 +1,74 @@
+---
+title: Quickstart
+description: Send your first webhook end-to-end in five minutes.
+---
+
+This walks you through creating a destination, subscribing to an event type,
+sending an event, and watching the delivery land. You'll use test mode so
+nothing touches real customers.
+
+## 1. Pick an endpoint to receive webhooks
+
+For this quickstart, use a disposable receiver. Open
+[webhook.site](https://webhook.site) in another tab and copy the unique URL it
+gives you. This is what Harbor will POST to.
+
+## 2. Register the destination
+
+```bash
+curl -X POST https://api.harbor.example/v1/destinations \
+  -H "Authorization: Bearer hk_test_your_test_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://webhook.site/your-unique-id",
+    "name": "Quickstart receiver"
+  }'
+```
+
+The response includes the destination's `id` (`dest_...`) and its
+`signing_secret` — this is shown **once**. Save it; you'll need it to verify
+payloads in a real receiver. See [Signing & verification](/concepts/signing-verification/).
+
+## 3. Subscribe to an event type
+
+```bash
+curl -X POST https://api.harbor.example/v1/subscriptions \
+  -H "Authorization: Bearer hk_test_your_test_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "destination_id": "dest_01HXYZ",
+    "event_type": "order.created"
+  }'
+```
+
+## 4. Send an event
+
+```bash
+curl -X POST https://api.harbor.example/v1/events \
+  -H "Authorization: Bearer hk_test_your_test_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "order.created",
+    "body": { "order_id": "ord_123", "amount_cents": 4500 }
+  }'
+```
+
+## 5. Watch the delivery
+
+Refresh webhook.site — you should see a POST with the event body and a
+`Harbor-Signature` header. Meanwhile:
+
+```bash
+curl https://api.harbor.example/v1/deliveries \
+  -H "Authorization: Bearer hk_test_your_test_key"
+```
+
+One delivery, status `succeeded`, `response_code: 200`.
+
+That's the whole loop. From here:
+
+- [Verify signatures](/guides/verifying-signatures/) in a real receiver.
+- [Handle retries](/guides/handling-retries/) correctly so Harbor's retry
+  behavior matches what your endpoint expects.
+- [Build idempotent consumers](/guides/idempotent-consumers/) so retries don't
+  double-process.

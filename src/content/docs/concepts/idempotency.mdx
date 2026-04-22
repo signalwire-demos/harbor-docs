@@ -1,0 +1,19 @@
+---
+title: "Idempotency"
+description: "Send the same event twice; Harbor treats it as one event. Do this at your consumer too."
+---
+
+Two kinds of idempotency matter. Producer idempotency: if your code crashes after POSTing to Harbor, a retry shouldn't create a duplicate event. Harbor supports this via the idempotency_key parameter on POST /v1/events. Consumer idempotency: if Harbor retries a delivery and your endpoint already processed it, don't double-charge the customer. Harbor gives you an event_id and a delivery_id — store either one and check before acting.
+
+## What to know
+
+- Pass an idempotency_key on event creation; Harbor returns the original event if the key was used in the last 24 hours.
+- Your consumer should key on event_id, not delivery_id — the same event can be retried across multiple deliveries.
+- Harbor's delivery retries are idempotent from its side: same event_id, same signature.
+
+## Related
+
+- [Events](/concepts/events/)
+- [Deliveries](/concepts/deliveries/)
+- [Retry policy](/concepts/retry-policy/)
+- `events-create`

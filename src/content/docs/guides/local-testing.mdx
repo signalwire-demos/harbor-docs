@@ -1,0 +1,36 @@
+---
+title: "Testing Harbor locally"
+description: "Show how to receive webhooks on localhost using the harbor CLI + a local tunnel."
+---
+
+This guide walks through show how to receive webhooks on localhost using the harbor cli + a local tunnel.
+
+## What you need to know
+
+- Install the harbor CLI: npm i -g @harbor/cli.
+- Run 'harbor listen --forward-to localhost:3000' — this opens a tunnel and prints a public URL.
+- Register that URL as a destination in test mode.
+- Events POSTed to test-mode destinations never hit your production customers.
+
+## Example
+
+### Shell
+
+```bash
+# 1. Install the CLI.
+npm i -g @harbor/cli
+harbor login              # opens a browser
+
+# 2. Tunnel Harbor deliveries to your local server.
+harbor listen --forward-to http://localhost:3000/webhooks/harbor
+# → printed: "Listening on https://abc-123.harbor-tunnels.example"
+
+# 3. In another terminal, register that URL as a test-mode destination.
+curl -X POST https://api.harbor.example/v1/destinations \
+  -H "Authorization: Bearer hk_test_your_test_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://abc-123.harbor-tunnels.example","name":"Local dev"}'
+
+# 4. Send a test event.
+harbor events send --type order.created --body '{"order_id":"test_1"}'
+```

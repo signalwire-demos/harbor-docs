@@ -1,0 +1,19 @@
+---
+title: "Destinations"
+description: "A URL Harbor delivers events to. Has a signing secret, a retry policy, and an active/paused state."
+---
+
+Every customer or service that receives your webhooks is a destination. You can have thousands. Each destination has its own signing secret (so your customer can verify the payload is from Harbor) and its own retry policy (how many retries, backoff shape, total time budget). Destinations can be paused and resumed without deleting them — useful when a customer is doing maintenance.
+
+## What to know
+
+- A destination is identified by an ID like dest_01HXYZ... — these are stable, safe to store in your database.
+- Destinations are scoped to an environment (live/test). A live destination cannot receive test events.
+- Pausing a destination stops new deliveries but does not cancel in-flight retries.
+
+## Related
+
+- [Subscriptions](/concepts/subscriptions/)
+- [Signing and verification](/concepts/signing-verification/)
+- [Retry policy](/concepts/retry-policy/)
+- [Destinations API](/api/destinations/)

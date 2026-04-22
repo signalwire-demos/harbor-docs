@@ -1,0 +1,20 @@
+---
+title: "Deliveries"
+description: "One attempt to deliver one event to one destination. Has a status (pending/succeeded/failed/retrying/dead)."
+---
+
+When an event matches a subscription, Harbor creates a delivery. Each delivery is an HTTP request to the destination's URL with the signed event body. If the destination responds with 2xx, the delivery succeeds. Non-2xx (including network errors) trigger the retry policy. If retries exhaust, the delivery moves to the dead-letter queue.
+
+## What to know
+
+- One event → many deliveries (one per matching destination).
+- Delivery status transitions: pending → retrying → (succeeded | dead).
+- Each delivery records the response code, response body (first 4 KB), and latency.
+- A delivery can be force-retried manually even after it's dead.
+
+## Related
+
+- [Retry policy](/concepts/retry-policy/)
+- [Dead-letter queue](/concepts/dead-letter-queue/)
+- [Signing and verification](/concepts/signing-verification/)
+- [Deliveries API](/api/deliveries/)

@@ -1,0 +1,40 @@
+---
+title: "What your endpoint should return"
+description: "Explain 2xx/4xx/5xx semantics from Harbor's perspective so the reader designs their receiver correctly."
+---
+
+This guide walks through explain 2xx/4xx/5xx semantics from harbor's perspective so the reader designs their receiver correctly.
+
+## What you need to know
+
+- Return 2xx (any) as fast as possible to ack receipt. Don't do work on the hot path.
+- Return 5xx on unexpected errors; Harbor will retry with backoff.
+- Return 4xx only for 'this event is malformed' — Harbor treats 4xx as permanent unless Harbor-Retry-Hint: true is set.
+- Don't return 2xx and then error in your async worker — do the work first (or at least durably enqueue it) before ack'ing.
+
+## Example
+
+### JavaScript (Node.js / Express)
+
+```js
+import express from 'express';
+const app = express();
+
+app.post('/webhooks/harbor', express.json(), async (req, res) => {
+  // Ack fast — do NOT do expensive work on the hot path.
+  try {
+    await enqueueForAsyncWorker(req.body);   // durable queue, not in-memory
+  } catch (err) {
+    // Return 5xx so Harbor retries.
+    return res.sendStatus(503);
+  }
+  // Once durably queued, ack. Even if our worker dies after this, the job is safe.
+  res.sendStatus(200);
+});
+
+// Malformed event? 4xx (Harbor will dead-letter it immediately).
+app.post('/webhooks/strict', express.json(), (req, res) => {
+  if (!req.body?.type) return res.sendStatus(400);
+  res.sendStatus(200);
+});
+```

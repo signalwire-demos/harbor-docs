@@ -1,0 +1,19 @@
+---
+title: "Event types"
+description: "Harbor doesn't interpret event types. You define your own taxonomy — dotted strings, ideally hierarchical."
+---
+
+An event's type is just a string like 'order.created' or 'user.subscription.updated'. Harbor treats it as opaque — it only matches it against subscriptions. But the taxonomy you pick matters because subscriptions can wildcard on it: a subscription for 'order.*' catches 'order.created', 'order.updated', and 'order.cancelled'. Pick a taxonomy that groups semantically — verb last is the conventional shape.
+
+## What to know
+
+- Convention: noun.verb ('order.created') or noun.sub_noun.verb ('user.subscription.updated').
+- Wildcards match only at segment boundaries: 'order.*' matches 'order.created' but NOT 'order.line_item.added'.
+- Double-wildcard 'order.**' matches all sub-events.
+- Case is significant: 'Order.Created' and 'order.created' are different types.
+
+## Related
+
+- [Events](/concepts/events/)
+- [Subscriptions](/concepts/subscriptions/)
+- [Subscriptions API](/api/subscriptions/)

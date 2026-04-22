@@ -1,0 +1,19 @@
+---
+title: "Dead-letter queue"
+description: "Deliveries that exhausted retries land here. You can inspect, replay, or delete them."
+---
+
+When a delivery exhausts its retry budget, it moves to the dead-letter queue (DLQ). Nothing is ever silently dropped — if you care about webhook reliability, you need to watch the DLQ. Most customers set up an alert ('ping me if DLQ depth > N') and a recurring job to triage.
+
+## What to know
+
+- DLQ entries retain the last response body (first 4 KB) and the full retry history.
+- You can replay a DLQ entry at any time within 30 days; it re-enters the retry pipeline fresh.
+- DLQ entries older than 30 days are purged.
+- The DLQ is per-environment; live and test are separate.
+
+## Related
+
+- [Deliveries](/concepts/deliveries/)
+- [Retry policy](/concepts/retry-policy/)
+- [Dead-letter Queue API](/api/dead-letter-queue/)

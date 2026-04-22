@@ -1,0 +1,29 @@
+---
+title: "Webhook specification"
+description: "The exact shape of what Harbor sends to your destinations: headers, body, signature format."
+---
+
+The exact shape of what Harbor sends to your destinations: headers, body, signature format.
+
+## What Harbor sends
+
+- Headers: Content-Type, Harbor-Signature, Harbor-Event-Id, Harbor-Event-Type, Harbor-Delivery-Id, Harbor-Retry-Count, Harbor-Timestamp.
+- Body: the exact event body you submitted, unmodified, as JSON.
+- Method: always POST.
+- Timeout: Harbor waits 30 seconds for a response before treating it as a failure.
+
+## Example request
+
+```http
+POST /webhooks/harbor HTTP/1.1
+Host: api.example.com
+Content-Type: application/json
+Harbor-Signature: t=1735689600,v1=a3b5c...
+Harbor-Event-Id: evt_01HXYZ
+Harbor-Event-Type: order.created
+Harbor-Delivery-Id: del_01ABC
+Harbor-Retry-Count: 0
+Harbor-Timestamp: 1735689600
+
+{"order_id": "ord_123", "amount_cents": 4500}
+```

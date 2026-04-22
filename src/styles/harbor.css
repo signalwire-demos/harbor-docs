@@ -1,0 +1,1053 @@
+/* ============================================================
+   HARBOR · ADMIRALTY THEME
+   ------------------------------------------------------------
+   A maritime engineering journal masquerading as developer docs.
+   Deep ink navy, bone cream paper, signal-lamp amber. Fraunces
+   display serif with IBM Plex for body and mono. Dark-first.
+   ============================================================ */
+
+/* ---- 1. Tokens ---------------------------------------------------------- */
+
+:root {
+  /* Brand palette */
+  --harbor-ink-900: #05101c;      /* deepest night water */
+  --harbor-ink-800: #0a1a2b;      /* hull navy */
+  --harbor-ink-700: #0f2337;      /* card surface, dark */
+  --harbor-ink-600: #173049;      /* subtle lift */
+  --harbor-ink-500: #284866;      /* lines / borders dark */
+  --harbor-ink-400: #486e8e;      /* secondary text dark */
+  --harbor-ink-300: #8aa7c1;      /* tertiary text dark */
+  --harbor-ink-200: #c2d3e2;      /* highlight */
+  --harbor-ink-100: #e5edf4;      /* near-white on ink */
+
+  --harbor-paper-50:  #faf5ea;    /* bone white — lightest paper */
+  --harbor-paper-100: #f4ecd9;    /* chart paper */
+  --harbor-paper-200: #e8dcc0;    /* aged paper, dividers */
+  --harbor-paper-300: #c9b893;    /* wash */
+  --harbor-paper-400: #8e7c5a;    /* ink on paper, secondary */
+  --harbor-paper-500: #4a3f2a;    /* ink on paper, primary */
+  --harbor-paper-900: #1e1a12;    /* print black */
+
+  --harbor-amber-400: #f5b544;    /* signal lamp glow */
+  --harbor-amber-500: #e89a1f;    /* signal lamp — the accent */
+  --harbor-amber-600: #b7770e;    /* amber pressed */
+
+  --harbor-sea-500:   #4bbfa6;    /* phosphor sea mint */
+  --harbor-sea-600:   #2c8a75;    /* deep sea */
+
+  --harbor-flag-red:  #d0432e;    /* channel marker */
+  --harbor-flag-rust: #8c3723;    /* rust on iron */
+
+  /* Typography */
+  --harbor-font-display:
+    'Fraunces', 'Times New Roman', Georgia, serif;
+  --harbor-font-sans:
+    'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --harbor-font-mono:
+    'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  --harbor-soft: 60;    /* Fraunces SOFT axis for body headings */
+  --harbor-wonk: 0;
+
+  /* Rhythm */
+  --harbor-tracked-caps: 0.22em;
+  --harbor-radius-sm: 2px;
+  --harbor-radius-md: 4px;
+  --harbor-radius-lg: 6px;
+
+  /* Hairlines */
+  --harbor-rule: 1px solid var(--harbor-ink-500);
+  --harbor-rule-strong: 2px solid var(--harbor-ink-200);
+
+  /* Widget safe area (preserved from before) */
+  --harbor-widget-safe-area: 96px;
+}
+
+/* ---- DocsBot widget stacking fix --------------------------------------- */
+/*
+ * Starlight puts `isolation: isolate` on `.main-pane`, which creates a new
+ * stacking context. The DocsBot widget is mounted inside that context (via
+ * the Footer component override), so even `position: fixed; z-index: max`
+ * on the widget gets trapped — the `.right-sidebar-container` is a sibling
+ * of `.main-pane` and paints on top, blocking widget clicks on every doc
+ * page (the splash/home template doesn't have this issue because it uses
+ * a different layout).
+ *
+ * Has to live in harbor.css rather than DocsBotWidget.css because this
+ * stylesheet is re-applied on every page by Starlight's `customCss`
+ * pipeline, while the widget's own CSS doesn't reload across Astro
+ * ClientRouter swaps (the widget persists via transition:persist).
+ */
+.main-pane {
+  isolation: auto !important;
+}
+
+/* ---- 2. Starlight variable overrides ------------------------------------ */
+
+/* Shared across themes */
+:root {
+  --sl-font: var(--harbor-font-sans);
+  --sl-font-mono: var(--harbor-font-mono);
+
+  /* Slightly wider content and sidebar for editorial rhythm */
+  --sl-content-width: 52rem;
+  --sl-sidebar-width: 18rem;
+  --sl-sidebar-pad-x: 1.25rem;
+
+  --sl-line-height: 1.65;
+  --sl-line-height-headings: 1.1;
+
+  --sl-text-code: 0.9em;
+  --sl-text-code-sm: 0.82em;
+}
+
+/* --- Dark theme (primary) ------------------------------------------------ */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --sl-color-white:   var(--harbor-paper-50);
+  --sl-color-gray-1:  var(--harbor-ink-100);
+  --sl-color-gray-2:  var(--harbor-ink-200);
+  --sl-color-gray-3:  var(--harbor-ink-300);
+  --sl-color-gray-4:  var(--harbor-ink-400);
+  --sl-color-gray-5:  var(--harbor-ink-500);
+  --sl-color-gray-6:  var(--harbor-ink-600);
+  --sl-color-gray-7:  var(--harbor-ink-700);
+  --sl-color-black:   var(--harbor-ink-900);
+
+  --sl-color-accent-low:  #2a1d06;
+  --sl-color-accent:      var(--harbor-amber-500);
+  --sl-color-accent-high: var(--harbor-amber-400);
+
+  --sl-color-text:        var(--harbor-ink-100);
+  --sl-color-text-accent: var(--harbor-amber-400);
+  --sl-color-text-invert: var(--harbor-ink-900);
+
+  --sl-color-bg:           var(--harbor-ink-900);
+  --sl-color-bg-nav:       color-mix(in srgb, var(--harbor-ink-900) 88%, transparent);
+  --sl-color-bg-sidebar:   var(--harbor-ink-900);
+  --sl-color-bg-inline-code: var(--harbor-ink-700);
+  --sl-color-bg-accent:    var(--harbor-amber-500);
+
+  --sl-color-hairline:         var(--harbor-ink-600);
+  --sl-color-hairline-light:   var(--harbor-ink-700);
+  --sl-color-hairline-shade:   var(--harbor-ink-800);
+
+  --sl-color-backdrop-overlay: color-mix(in srgb, var(--harbor-ink-900) 80%, transparent);
+
+  --sl-shadow-sm: 0 1px 0 rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.35);
+  --sl-shadow-md: 0 2px 0 rgba(255,255,255,0.02), 0 10px 24px rgba(0,0,0,0.45);
+  --sl-shadow-lg: 0 30px 80px rgba(0,0,0,0.55);
+}
+
+/* --- Light theme (alternate) -------------------------------------------- */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --sl-color-white:   var(--harbor-paper-900);
+  --sl-color-gray-1:  var(--harbor-paper-500);
+  --sl-color-gray-2:  var(--harbor-paper-400);
+  --sl-color-gray-3:  #7b6947;
+  --sl-color-gray-4:  var(--harbor-paper-300);
+  --sl-color-gray-5:  var(--harbor-paper-200);
+  --sl-color-gray-6:  #f0e7cf;
+  --sl-color-gray-7:  var(--harbor-paper-100);
+  --sl-color-black:   var(--harbor-paper-50);
+
+  --sl-color-accent-low:  #fbe8c1;
+  --sl-color-accent:      var(--harbor-amber-600);
+  --sl-color-accent-high: #6a4404;
+
+  --sl-color-text:        var(--harbor-paper-500);
+  --sl-color-text-accent: var(--harbor-amber-600);
+  --sl-color-text-invert: var(--harbor-paper-50);
+
+  --sl-color-bg:           var(--harbor-paper-50);
+  --sl-color-bg-nav:       color-mix(in srgb, var(--harbor-paper-50) 88%, transparent);
+  --sl-color-bg-sidebar:   var(--harbor-paper-50);
+  --sl-color-bg-inline-code: var(--harbor-paper-100);
+
+  --sl-color-hairline:         var(--harbor-paper-200);
+  --sl-color-hairline-light:   #efe5cc;
+  --sl-color-hairline-shade:   #e8dcc0;
+}
+
+/* ---- 3. Ambient background ---------------------------------------------- */
+
+body {
+  background-color: var(--sl-color-bg);
+  background-image:
+    /* amber glow, top-right */
+    radial-gradient(
+      ellipse 60vw 70vh at 85% -10%,
+      rgba(232, 154, 31, 0.08),
+      transparent 60%
+    ),
+    /* sea phosphor, bottom-left */
+    radial-gradient(
+      ellipse 50vw 60vh at 5% 110%,
+      rgba(75, 191, 166, 0.05),
+      transparent 55%
+    ),
+    /* subtle grid like a chart */
+    linear-gradient(to right,  rgba(138, 167, 193, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(138, 167, 193, 0.025) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  background-attachment: fixed;
+}
+
+[data-theme='light'] body {
+  background-image:
+    radial-gradient(
+      ellipse 60vw 70vh at 85% -10%,
+      rgba(184, 119, 14, 0.06),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 50vw 60vh at 5% 110%,
+      rgba(44, 138, 117, 0.05),
+      transparent 55%
+    ),
+    linear-gradient(to right,  rgba(142, 124, 90, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(142, 124, 90, 0.06) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  background-attachment: fixed;
+}
+
+/* Film grain overlay for paper texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.4 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+}
+
+[data-theme='light'] body::before {
+  opacity: 0.28;
+  mix-blend-mode: multiply;
+}
+
+/* ---- 4. Typography ------------------------------------------------------ */
+
+body {
+  font-family: var(--harbor-font-sans);
+  font-feature-settings: 'ss01', 'cv01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.sl-markdown-content h5,
+.sl-markdown-content h6,
+h1.page-title,
+h1.hero-title,
+.content-panel h1 {
+  font-family: var(--harbor-font-display);
+  font-variation-settings:
+    'opsz' 72,
+    'SOFT' var(--harbor-soft),
+    'WONK' var(--harbor-wonk);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--sl-color-white);
+}
+
+/* Page title — editorial display */
+.content-panel h1 {
+  font-size: clamp(2.4rem, 1.4rem + 3.2vw, 4rem);
+  font-weight: 450;
+  letter-spacing: -0.022em;
+  line-height: 1.02;
+  margin-bottom: 0.8rem;
+}
+
+.sl-markdown-content h2 {
+  font-size: clamp(1.55rem, 1.15rem + 1.1vw, 2.05rem);
+  font-variation-settings:
+    'opsz' 48,
+    'SOFT' 30,
+    'WONK' 0;
+  font-weight: 500;
+  margin-top: 3.2em;
+  padding-top: 1.4em;
+  border-top: 1px solid var(--sl-color-hairline);
+  position: relative;
+}
+
+/* Chapter-style numerals beside h2 */
+.sl-markdown-content > h2::before {
+  content: counter(h2-counter, decimal-leading-zero);
+  counter-increment: h2-counter;
+  position: absolute;
+  top: 1.4em;
+  left: -3.8rem;
+  font-family: var(--harbor-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--harbor-amber-500);
+  line-height: 1.2;
+  padding-top: 0.4em;
+  display: none;    /* shown at wider widths below */
+}
+
+.sl-markdown-content {
+  counter-reset: h2-counter;
+}
+
+@media (min-width: 80rem) {
+  .sl-markdown-content > h2::before {
+    display: block;
+  }
+}
+
+.sl-markdown-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-family: var(--harbor-font-sans);
+  letter-spacing: -0.01em;
+  margin-top: 2.4em;
+  text-transform: none;
+}
+
+/* Page description / lede under h1 */
+.content-panel .sl-flex p[class*='description'],
+.hero p.tagline {
+  font-family: var(--harbor-font-display);
+  font-variation-settings: 'opsz' 24, 'SOFT' 80, 'WONK' 0;
+  font-style: italic;
+  font-weight: 350;
+  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
+  color: var(--sl-color-gray-2);
+  letter-spacing: -0.005em;
+  line-height: 1.45;
+}
+
+/* Eyebrow over page title — "chapter" style. Rendered for every standard
+   doc page (not splash — splash uses the HarborHero component). */
+.content-panel:first-of-type .sl-container::before {
+  content: 'HARBOR · TECHNICAL MANUAL — CHAPTER';
+  display: block;
+  font-family: var(--harbor-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: var(--harbor-tracked-caps);
+  color: var(--harbor-amber-500);
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  text-transform: uppercase;
+}
+
+/* Suppress eyebrow on splash (it has its own hero masthead) */
+body:has(.harbor-hero) .content-panel:first-of-type .sl-container::before {
+  content: none;
+}
+
+/* Body links */
+.sl-markdown-content a:not(.not-content *) {
+  color: var(--harbor-amber-400);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--harbor-amber-400) 40%, transparent);
+  transition: color 140ms ease, text-decoration-color 140ms ease;
+}
+
+.sl-markdown-content a:hover:not(.not-content *) {
+  color: var(--harbor-amber-500);
+  text-decoration-color: var(--harbor-amber-500);
+}
+
+[data-theme='light'] .sl-markdown-content a:not(.not-content *) {
+  color: var(--harbor-amber-600);
+  text-decoration-color: color-mix(in srgb, var(--harbor-amber-600) 50%, transparent);
+}
+
+/* No drop caps — this is a technical manual, not an essay. People scan
+   these pages for a curl command; the first-letter flourish belongs in
+   long-form editorial, not reference docs. The rest of the admiralty
+   vocabulary (coordinates, chapter eyebrow, tide ruler) carries the
+   aesthetic without slowing the eye. */
+
+/* ---- 5. Header (top nav) ------------------------------------------------ */
+
+header.header {
+  border-bottom: 1px solid var(--sl-color-hairline);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  background: color-mix(in srgb, var(--sl-color-bg) 78%, transparent);
+}
+
+/* Site title — the "Harbor" wordmark */
+.site-title {
+  font-family: var(--harbor-font-display);
+  font-variation-settings: 'opsz' 72, 'SOFT' 30, 'WONK' 1;
+  font-weight: 500;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: var(--sl-color-white);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.site-title::before {
+  /* Tiny signal-lamp mark */
+  content: '';
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--harbor-amber-500);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--harbor-amber-500) 18%, transparent),
+    0 0 14px var(--harbor-amber-500);
+  animation: harborBeacon 2.6s ease-in-out infinite;
+}
+
+@keyframes harborBeacon {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.05); }
+}
+
+/* Search input */
+.sl-search-box,
+dialog[class*='SearchDialog'] [class*='DocSearch-Form'] {
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.85em !important;
+}
+
+/* ---- 6. Sidebar --------------------------------------------------------- */
+
+.sidebar-content {
+  padding-top: 1.25rem !important;
+}
+
+.sidebar-content ul.top-level > li > details > summary > .group-label span.large,
+.sidebar-content > ul > li > span.large,
+.sidebar-content ul.top-level > li > span.large {
+  font-family: var(--harbor-font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: var(--harbor-tracked-caps);
+  text-transform: uppercase;
+  color: var(--harbor-amber-500);
+}
+
+.sidebar-content a[aria-current='page'] {
+  background: color-mix(in srgb, var(--harbor-amber-500) 14%, transparent);
+  color: var(--harbor-amber-400);
+  border-left: 2px solid var(--harbor-amber-500);
+  padding-left: calc(var(--sl-sidebar-item-padding-inline) - 2px);
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+[data-theme='light'] .sidebar-content a[aria-current='page'] {
+  background: color-mix(in srgb, var(--harbor-amber-500) 18%, transparent);
+  color: var(--harbor-amber-600);
+}
+
+.sidebar-content a {
+  border-radius: var(--harbor-radius-sm);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+/* Add a subtle station-marker before every sidebar link */
+.sidebar-content ul.top-level ul a::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1px;
+  background: var(--sl-color-gray-5);
+  margin-right: 0.6rem;
+  vertical-align: middle;
+  transition: width 140ms ease, background-color 140ms ease;
+}
+
+.sidebar-content ul.top-level ul a:hover::before,
+.sidebar-content ul.top-level ul a[aria-current='page']::before {
+  width: 12px;
+  background: var(--harbor-amber-500);
+}
+
+/* ---- 7. Table of contents (right rail) --------------------------------- */
+
+starlight-toc nav {
+  font-family: var(--harbor-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+}
+
+starlight-toc h2 {
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.7rem !important;
+  font-weight: 500;
+  letter-spacing: var(--harbor-tracked-caps);
+  text-transform: uppercase;
+  color: var(--harbor-amber-500) !important;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+starlight-toc nav ul {
+  border-left: 1px solid var(--sl-color-hairline);
+}
+
+starlight-toc nav a {
+  border-left: 2px solid transparent;
+  margin-left: -1px;
+  padding-left: 0.85rem;
+}
+
+starlight-toc nav a[aria-current='true'] {
+  color: var(--harbor-amber-400);
+  border-left-color: var(--harbor-amber-500);
+  font-weight: 500;
+}
+
+/* ---- 8. Buttons / actions ---------------------------------------------- */
+
+.sl-link-button {
+  border-radius: var(--harbor-radius-sm) !important;
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 0.04em !important;
+  font-weight: 500 !important;
+  padding: 0.9rem 1.4rem !important;
+  transition: transform 120ms ease, box-shadow 140ms ease, background-color 120ms ease !important;
+  position: relative;
+}
+
+.sl-link-button.primary {
+  background: var(--harbor-amber-500) !important;
+  color: var(--harbor-ink-900) !important;
+  border: 1px solid var(--harbor-amber-500) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 1px var(--harbor-amber-500),
+    0 10px 30px -10px rgba(232, 154, 31, 0.6),
+    0 0 40px -10px rgba(245, 181, 68, 0.55);
+  text-transform: uppercase;
+}
+
+.sl-link-button.primary:hover {
+  background: var(--harbor-amber-400) !important;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 1px var(--harbor-amber-400),
+    0 14px 40px -10px rgba(245, 181, 68, 0.75),
+    0 0 60px -10px rgba(245, 181, 68, 0.7);
+}
+
+.sl-link-button.minimal {
+  color: var(--sl-color-white) !important;
+  border: 1px solid var(--sl-color-hairline) !important;
+  background: transparent !important;
+  text-transform: uppercase;
+}
+
+.sl-link-button.minimal:hover {
+  border-color: var(--harbor-amber-500) !important;
+  color: var(--harbor-amber-400) !important;
+  background: color-mix(in srgb, var(--harbor-amber-500) 8%, transparent) !important;
+}
+
+/* ---- 9. Cards ----------------------------------------------------------- */
+
+.card {
+  background: color-mix(in srgb, var(--harbor-ink-800) 70%, transparent);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--harbor-radius-md);
+  padding: 1.4rem 1.6rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 160ms ease, transform 180ms ease, background-color 180ms ease;
+}
+
+[data-theme='light'] .card {
+  background: color-mix(in srgb, var(--harbor-paper-100) 60%, transparent);
+}
+
+.card::after {
+  /* Corner bracket top-right — like an engineering datum */
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  border-top: 1px solid var(--harbor-amber-500);
+  border-right: 1px solid var(--harbor-amber-500);
+  opacity: 0.45;
+  transition: opacity 180ms ease, width 180ms ease, height 180ms ease;
+}
+
+.card:hover {
+  border-color: var(--harbor-amber-500);
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--harbor-ink-700) 80%, transparent);
+}
+
+[data-theme='light'] .card:hover {
+  background: color-mix(in srgb, var(--harbor-paper-50) 80%, transparent);
+}
+
+.card:hover::after {
+  opacity: 1;
+  width: 28px;
+  height: 28px;
+}
+
+.card .title {
+  font-family: var(--harbor-font-display) !important;
+  font-variation-settings: 'opsz' 36, 'SOFT' 50, 'WONK' 0 !important;
+  font-weight: 500 !important;
+  font-size: 1.2rem !important;
+  color: var(--sl-color-white);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.card .icon {
+  color: var(--harbor-amber-500) !important;
+  width: 1.4rem;
+  height: 1.4rem;
+  background: none !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.card p {
+  color: var(--sl-color-gray-2);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+/* Card grid rhythm */
+.sl-flex[class*='card-grid'],
+.card-grid {
+  gap: 1rem;
+}
+
+/* ---- 10. Code ----------------------------------------------------------- */
+
+.expressive-code .frame,
+.expressive-code pre {
+  border-radius: var(--harbor-radius-md) !important;
+  border: 1px solid var(--sl-color-hairline) !important;
+  background: var(--harbor-ink-900) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 12px 30px -18px rgba(0, 0, 0, 0.6) !important;
+}
+
+.expressive-code pre > code {
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.85rem !important;
+  font-weight: 400 !important;
+  line-height: 1.65 !important;
+}
+
+.expressive-code .frame .header {
+  border-bottom: 1px solid var(--sl-color-hairline) !important;
+  background: var(--harbor-ink-800) !important;
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3) !important;
+}
+
+/* Inline code */
+.sl-markdown-content code:not(:where(.not-content *)):not(pre code) {
+  font-family: var(--harbor-font-mono);
+  font-size: 0.86em;
+  background: color-mix(in srgb, var(--harbor-amber-500) 10%, transparent);
+  color: var(--harbor-amber-400);
+  padding: 0.12em 0.42em;
+  border-radius: var(--harbor-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--harbor-amber-500) 22%, transparent);
+}
+
+[data-theme='light'] .sl-markdown-content code:not(:where(.not-content *)):not(pre code) {
+  background: color-mix(in srgb, var(--harbor-amber-500) 16%, transparent);
+  color: var(--harbor-amber-600);
+}
+
+/* ---- 11. Blockquote, rules, lists --------------------------------------- */
+
+.sl-markdown-content blockquote {
+  border-left: 2px solid var(--harbor-amber-500);
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  margin-left: 0;
+  font-family: var(--harbor-font-display);
+  font-variation-settings: 'opsz' 24, 'SOFT' 80;
+  font-style: italic;
+  font-weight: 350;
+  color: var(--sl-color-gray-2);
+  font-size: 1.1rem;
+  position: relative;
+}
+
+.sl-markdown-content blockquote::before {
+  content: '“';
+  position: absolute;
+  left: -0.8rem;
+  top: -0.75rem;
+  font-size: 3rem;
+  color: var(--harbor-amber-500);
+  font-family: var(--harbor-font-display);
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.sl-markdown-content hr {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--harbor-amber-500) 20%,
+    var(--harbor-amber-500) 80%,
+    transparent 100%
+  );
+  opacity: 0.5;
+  margin: 3rem 0;
+}
+
+.sl-markdown-content ul li::marker {
+  color: var(--harbor-amber-500);
+}
+
+.sl-markdown-content ul:not(:where(.not-content *)) {
+  list-style: none;
+  padding-left: 1.3rem;
+}
+
+.sl-markdown-content ul:not(:where(.not-content *)) > li {
+  position: relative;
+  padding-left: 0.1rem;
+  margin: 0.5rem 0;
+}
+
+.sl-markdown-content ul:not(:where(.not-content *)) > li::before {
+  content: '';
+  position: absolute;
+  left: -1.1rem;
+  top: 0.75em;
+  width: 10px;
+  height: 1px;
+  background: var(--harbor-amber-500);
+}
+
+/* ---- 12. Tables --------------------------------------------------------- */
+
+.sl-markdown-content table {
+  font-family: var(--harbor-font-sans);
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--harbor-radius-md);
+  overflow: hidden;
+}
+
+.sl-markdown-content thead th {
+  background: var(--harbor-ink-800);
+  font-family: var(--harbor-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: var(--harbor-tracked-caps);
+  text-transform: uppercase;
+  color: var(--harbor-amber-500);
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+[data-theme='light'] .sl-markdown-content thead th {
+  background: var(--harbor-paper-100);
+  color: var(--harbor-amber-600);
+}
+
+.sl-markdown-content tbody tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--harbor-ink-800) 40%, transparent);
+}
+
+[data-theme='light'] .sl-markdown-content tbody tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--harbor-paper-100) 40%, transparent);
+}
+
+/* ---- 13. Widget safe area (preserved) ----------------------------------- */
+
+@media (max-width: 50rem) {
+  sl-page-frame {
+    padding-bottom: var(--harbor-widget-safe-area);
+  }
+}
+
+/* ---- 14. Small touches -------------------------------------------------- */
+
+/* Selection */
+::selection {
+  background: var(--harbor-amber-500);
+  color: var(--harbor-ink-900);
+}
+
+/* Scrollbar (WebKit) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--harbor-ink-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--harbor-ink-600);
+  border-radius: 10px;
+  border: 2px solid var(--harbor-ink-900);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--harbor-amber-500);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: var(--harbor-paper-50);
+}
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: var(--harbor-paper-300);
+  border: 2px solid var(--harbor-paper-50);
+}
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--harbor-amber-600);
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--harbor-amber-500) !important;
+  outline-offset: 2px !important;
+}
+
+/* ---- 15. Splash page extras -------------------------------------------- */
+
+.harbor-prose {
+  max-width: 42rem;
+  margin: 0 auto 3rem;
+}
+
+.harbor-prose h2 {
+  font-family: var(--harbor-font-display) !important;
+  font-variation-settings: 'opsz' 48, 'SOFT' 30, 'WONK' 0 !important;
+  font-weight: 500 !important;
+  font-size: clamp(1.8rem, 1.3rem + 1.4vw, 2.4rem) !important;
+  letter-spacing: -0.015em !important;
+  color: var(--sl-color-white) !important;
+  margin: 0 0 1rem !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.harbor-prose h2::before { content: none !important; }
+
+.harbor-prose p {
+  color: var(--sl-color-gray-2);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin: 0 0 1rem;
+}
+
+.harbor-prose p strong {
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+/* Kill the drop cap on splash pages (overrides the default) */
+.harbor-prose > p::first-letter,
+.harbor-chart ~ * p::first-letter {
+  all: unset !important;
+}
+
+/* Admiralty-style numbered chart */
+.harbor-chart {
+  max-width: 52rem;
+  margin: 0 auto 4rem;
+  border-top: 1px solid var(--sl-color-hairline);
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+.harbor-chart__row {
+  display: grid;
+  grid-template-columns: 3rem 10rem 1fr;
+  gap: 1.25rem;
+  align-items: baseline;
+  padding: 1.2rem 0.25rem;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+  transition: background-color 160ms ease;
+}
+
+.harbor-chart__row:last-child {
+  border-bottom: 0;
+}
+
+.harbor-chart__row:hover {
+  background: color-mix(in srgb, var(--harbor-amber-500) 6%, transparent);
+}
+
+@media (max-width: 40rem) {
+  .harbor-chart__row {
+    grid-template-columns: 3rem 1fr;
+    grid-template-areas: 'num k' 'num v';
+    row-gap: 0.25rem;
+  }
+  .harbor-chart__num { grid-area: num; }
+  .harbor-chart__k   { grid-area: k; }
+  .harbor-chart__v   { grid-area: v; }
+}
+
+.harbor-chart__num {
+  font-family: var(--harbor-font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--harbor-amber-500);
+  letter-spacing: 0.12em;
+}
+
+.harbor-chart__k {
+  font-family: var(--harbor-font-display);
+  font-variation-settings: 'opsz' 36, 'SOFT' 40, 'WONK' 0;
+  font-weight: 500;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+  color: var(--sl-color-white);
+}
+
+.harbor-chart__v {
+  font-size: 1rem;
+  color: var(--sl-color-gray-2);
+  line-height: 1.55;
+}
+
+/* Thin signed footer strip for the splash — editorial voice without the
+   pullquote theatrics. Small mono caps, flanking tick marks, single line. */
+.harbor-sign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  margin: 3rem auto 0.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--sl-color-hairline);
+  max-width: 52rem;
+}
+
+.harbor-sign__mark {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  background: var(--harbor-amber-500);
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--harbor-amber-500) 60%, transparent);
+}
+
+.harbor-sign__text {
+  font-family: var(--harbor-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+  text-align: center;
+}
+
+/* Splash template: override content-panel eyebrow — we don't want the
+   "HARBOR · TECHNICAL MANUAL" tag on the splash since the hero has its
+   own editorial masthead. */
+body[data-has-hero] .content-panel > .sl-flex:first-child::before {
+  content: none;
+}
+
+/* ---- 16. Previous / Next pagination ------------------------------------ */
+
+.pagination-links a {
+  border: 1px solid var(--sl-color-hairline) !important;
+  border-radius: var(--harbor-radius-md) !important;
+  padding: 1.1rem 1.35rem !important;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  position: relative;
+}
+
+.pagination-links a:hover {
+  border-color: var(--harbor-amber-500) !important;
+  background: color-mix(in srgb, var(--harbor-amber-500) 6%, transparent) !important;
+  transform: translateY(-1px);
+}
+
+.pagination-links a > span:first-of-type {
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.68rem !important;
+  font-weight: 500 !important;
+  letter-spacing: var(--harbor-tracked-caps) !important;
+  text-transform: uppercase;
+  color: var(--harbor-amber-500) !important;
+}
+
+.pagination-links a > span:last-of-type {
+  font-family: var(--harbor-font-display) !important;
+  font-variation-settings: 'opsz' 36, 'SOFT' 40, 'WONK' 0 !important;
+  font-weight: 500 !important;
+  font-size: 1.2rem !important;
+  color: var(--sl-color-white) !important;
+  letter-spacing: -0.01em;
+}
+
+/* ---- 17. Footer (bottom masthead) -------------------------------------- */
+
+footer.sl-footer {
+  border-top: 1px solid var(--sl-color-hairline);
+  padding-top: 1.5rem;
+  margin-top: 3.5rem;
+  font-family: var(--harbor-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--sl-color-gray-3);
+}
+
+.page .meta {
+  font-family: var(--harbor-font-mono) !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.08em;
+  color: var(--sl-color-gray-3) !important;
+}
+
+/* Starlight's built-in footer text block */
+footer.sl-footer a,
+.content-panel + footer a {
+  color: var(--harbor-amber-400) !important;
+}
+
+/* Add a tiny tide-chart ruler between content and footer */
+.content-panel:has(footer)::after,
+main footer::before {
+  content: '';
+  display: block;
+  height: 6px;
+  margin: 1rem 0 1.5rem;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--sl-color-gray-5) 0,
+    var(--sl-color-gray-5) 1px,
+    transparent 1px,
+    transparent 2.5%
+  );
+  opacity: 0.5;
+}

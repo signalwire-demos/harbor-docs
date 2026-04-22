@@ -1,0 +1,76 @@
+---
+title: Harbor
+description: Reliable webhook delivery, with guardrails.
+template: splash
+hero:
+  tagline: Webhook delivery as infrastructure — signed, retried, idempotent, observable.
+  actions:
+    - text: Quickstart
+      link: /getting-started/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: API reference
+      link: /api/destinations/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<section class="harbor-prose">
+
+## What Harbor does
+
+You POST events to Harbor. We deliver them to your customers' HTTPS endpoints with
+retries, HMAC signing, idempotency, replay, and a dead-letter queue. You don't run
+the retry scheduler. You don't rotate signing keys by hand. You don't lose
+deliveries when a customer's endpoint has a bad five minutes.
+
+Three nouns explain the whole system: **destinations** (where events go),
+**events** (what you send), and **deliveries** (each attempt, with status and
+response). Everything else is a detail about one of those three.
+
+</section>
+
+<div class="harbor-chart">
+  <div class="harbor-chart__row">
+    <span class="harbor-chart__num">01</span>
+    <span class="harbor-chart__k">Destinations</span>
+    <span class="harbor-chart__v">HTTPS endpoints with their own signing secret, retry policy, and active/paused state.</span>
+  </div>
+  <div class="harbor-chart__row">
+    <span class="harbor-chart__num">02</span>
+    <span class="harbor-chart__k">Events</span>
+    <span class="harbor-chart__v">Typed payloads you POST to Harbor. Subscriptions fan them out to destinations.</span>
+  </div>
+  <div class="harbor-chart__row">
+    <span class="harbor-chart__num">03</span>
+    <span class="harbor-chart__k">Deliveries</span>
+    <span class="harbor-chart__v">Each attempt — status, response code, latency, retry lineage. The audit trail.</span>
+  </div>
+</div>
+
+## Chart the course
+
+<CardGrid>
+  <Card title="Get started" icon="rocket">
+    Send your first webhook in five minutes. See the [Quickstart](/getting-started/quickstart/).
+  </Card>
+  <Card title="Core concepts" icon="document">
+    [Destinations](/concepts/destinations/), [events](/concepts/events/), and
+    [deliveries](/concepts/deliveries/) — the three nouns that explain everything.
+  </Card>
+  <Card title="API reference" icon="open-book">
+    Every endpoint with parameters, returns, and `curl` examples.
+    Start with [Destinations](/api/destinations/).
+  </Card>
+  <Card title="Troubleshooting" icon="warning">
+    HMAC signature mismatches, retry storms, duplicate deliveries — the classics,
+    with how to fix them. See [Troubleshooting](/troubleshooting/hmac-signature-mismatch/).
+  </Card>
+</CardGrid>
+
+<div class="harbor-sign">
+  <span class="harbor-sign__mark" aria-hidden="true"></span>
+  <span class="harbor-sign__text">Harbor · est. 2024 · built for engineers who'd rather not run their own retry scheduler</span>
+  <span class="harbor-sign__mark" aria-hidden="true"></span>
+</div>

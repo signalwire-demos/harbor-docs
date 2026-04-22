@@ -1,0 +1,56 @@
+---
+title: "Dead-letter Queue API"
+description: "Inspect and replay dead-lettered deliveries."
+---
+
+Inspect and replay dead-lettered deliveries.
+
+See the [Dead-letter queue](/concepts/dead-letter-queue/) concept for background.
+
+## List dead-lettered deliveries
+
+`GET /v1/dlq`
+
+Paginated. Same filter shape as list-deliveries.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `destination_id` | string | no |  |
+| `since` | string | no |  |
+| `cursor` | string | no |  |
+
+### Returns
+
+A page of dead deliveries.
+
+### Example
+
+```bash
+curl -X GET https://api.harbor.example/v1/dlq \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+## Replay a dead-lettered delivery
+
+`POST /v1/dlq/{delivery_id}/replay`
+
+Re-enter the delivery into the retry pipeline. Retries start fresh.
+
+### Returns
+
+The delivery, now 'retrying'.
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/dlq/del_01ABC/replay \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json"
+```
+
+### Errors
+
+- `delivery_not_found`
+- `delivery_too_old`

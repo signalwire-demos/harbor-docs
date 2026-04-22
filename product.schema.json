@@ -1,0 +1,606 @@
+{
+  "$schema": "./product.schema-schema.json",
+  "schema_version": "1.0.0",
+  "product": {
+    "name": "Harbor",
+    "slug": "harbor",
+    "tagline": "Reliable webhook delivery, with guardrails.",
+    "description": "Harbor is a webhook delivery platform. You POST events to us, and we deliver them to your customers' HTTPS endpoints with retries, HMAC signing, idempotency, replay, and a dead-letter queue. Think of it as a post office for webhooks: reliable, observable, and resistant to the weird failure modes that make webhook delivery painful to build yourself.",
+    "voice": {
+      "tone": "Direct, concrete, lightly dry. Talk to engineers like colleagues. No marketing adjectives. Code examples are the main character; prose exists to frame them.",
+      "avoid": ["seamless", "effortless", "simply", "just", "powerful", "leverage", "enterprise-grade", "industry-leading"],
+      "prefer": ["when", "if", "because", "here's why", "this is how", "the gotcha is"],
+      "naming": {
+        "event": "An event is the JSON payload you POST to Harbor. Always singular. Never 'webhook event' or 'outgoing event' — just 'event'.",
+        "delivery": "A delivery is one attempt to deliver one event to one destination. Plural 'deliveries'. Never 'delivery attempt' (redundant).",
+        "destination": "A destination is a URL Harbor delivers to. Never 'endpoint' (confusing with API endpoints) or 'webhook URL'.",
+        "subscription": "A subscription maps event types to destinations. Never 'rule' or 'filter'."
+      }
+    }
+  },
+  "api": {
+    "base_url": "https://api.harbor.example",
+    "version": "v1",
+    "auth": {
+      "scheme": "Bearer",
+      "header": "Authorization: Bearer hk_live_`<your_api_key>`",
+      "note": "Harbor API keys start with hk_live_ for production and hk_test_ for test mode."
+    },
+    "content_type": "application/json",
+    "rate_limit": {
+      "ingest": "1000 events/second per project",
+      "management": "60 requests/minute per API key"
+    }
+  },
+  "concepts": [
+    {
+      "slug": "destinations",
+      "title": "Destinations",
+      "summary": "A URL Harbor delivers events to. Has a signing secret, a retry policy, and an active/paused state.",
+      "explanation": "Every customer or service that receives your webhooks is a destination. You can have thousands. Each destination has its own signing secret (so your customer can verify the payload is from Harbor) and its own retry policy (how many retries, backoff shape, total time budget). Destinations can be paused and resumed without deleting them — useful when a customer is doing maintenance.",
+      "key_points": [
+        "A destination is identified by an ID like dest_01HXYZ... — these are stable, safe to store in your database.",
+        "Destinations are scoped to an environment (live/test). A live destination cannot receive test events.",
+        "Pausing a destination stops new deliveries but does not cancel in-flight retries."
+      ],
+      "related_concepts": ["subscriptions", "signing-verification", "retry-policy"],
+      "related_endpoints": ["destinations-api"]
+    },
+    {
+      "slug": "subscriptions",
+      "title": "Subscriptions",
+      "summary": "A mapping from event types to destinations. 'When an event of type X happens, deliver it to destinations A and B.'",
+      "explanation": "Subscriptions are how you route events. You don't specify the destination when you send an event; instead, subscriptions decide where events go based on their type (e.g., 'order.created', 'user.deleted'). This decouples your event producers from your consumer set — add or remove destinations without touching your application code.",
+      "key_points": [
+        "A subscription matches on event_type (exact or wildcard, e.g., 'order.*').",
+        "One event can fan out to many destinations via multiple matching subscriptions.",
+        "Subscriptions can be paused independently of their destinations."
+      ],
+      "related_concepts": ["destinations", "events", "event-types"],
+      "related_endpoints": ["subscriptions-api"]
+    },
+    {
+      "slug": "events",
+      "title": "Events",
+      "summary": "The JSON payload you POST to Harbor. Has a type, a body, and an optional idempotency key.",
+      "explanation": "Events are the things Harbor delivers. When you POST an event, Harbor accepts it, figures out which subscriptions match, and schedules a delivery for each matching destination. The event itself is stored durably; deliveries are the runtime attempts.",
+      "key_points": [
+        "An event's type is a dotted string like 'order.created'. Harbor doesn't interpret the type — you define your own taxonomy.",
+        "The event body can be any valid JSON up to 256 KB.",
+        "Include an idempotency_key to guarantee that sending the same event twice produces one event (not two).",
+        "Events are retained for 30 days by default; deliveries can be replayed within that window."
+      ],
+      "related_concepts": ["event-types", "idempotency", "deliveries"],
+      "related_endpoints": ["events-create", "events-replay"]
+    },
+    {
+      "slug": "deliveries",
+      "title": "Deliveries",
+      "summary": "One attempt to deliver one event to one destination. Has a status (pending/succeeded/failed/retrying/dead).",
+      "explanation": "When an event matches a subscription, Harbor creates a delivery. Each delivery is an HTTP request to the destination's URL with the signed event body. If the destination responds with 2xx, the delivery succeeds. Non-2xx (including network errors) trigger the retry policy. If retries exhaust, the delivery moves to the dead-letter queue.",
+      "key_points": [
+        "One event → many deliveries (one per matching destination).",
+        "Delivery status transitions: pending → retrying → (succeeded | dead).",
+        "Each delivery records the response code, response body (first 4 KB), and latency.",
+        "A delivery can be force-retried manually even after it's dead."
+      ],
+      "related_concepts": ["retry-policy", "dead-letter-queue", "signing-verification"],
+      "related_endpoints": ["deliveries-api"]
+    },
+    {
+      "slug": "signing-verification",
+      "title": "Signing and verification",
+      "summary": "Every delivery includes an HMAC-SHA256 signature so your customers can verify the payload is from Harbor.",
+      "explanation": "Harbor signs every delivery with the destination's signing secret. The signature goes in the `Harbor-Signature` header. Your customer's server computes the same HMAC over the raw request body and rejects the request if the signatures don't match. This is how Stripe and GitHub webhooks work too — Harbor just hosts the signing and key rotation for you.",
+      "key_points": [
+        "Algorithm: HMAC-SHA256 over the raw request body.",
+        "The signature header format: `Harbor-Signature: t=<unix_ts>,v1=<hex_signature>`.",
+        "Include the timestamp in the signed payload to prevent replay attacks: sign t + '.' + body.",
+        "Signing keys rotate on demand; Harbor sends both old and new signatures during a rotation grace period so customers can roll over.",
+        "The signing secret is NOT the same as your API key — don't confuse them."
+      ],
+      "related_concepts": ["destinations"],
+      "related_endpoints": ["signing-keys-api"]
+    },
+    {
+      "slug": "idempotency",
+      "title": "Idempotency",
+      "summary": "Send the same event twice; Harbor treats it as one event. Do this at your consumer too.",
+      "explanation": "Two kinds of idempotency matter. Producer idempotency: if your code crashes after POSTing to Harbor, a retry shouldn't create a duplicate event. Harbor supports this via the idempotency_key parameter on POST /v1/events. Consumer idempotency: if Harbor retries a delivery and your endpoint already processed it, don't double-charge the customer. Harbor gives you an event_id and a delivery_id — store either one and check before acting.",
+      "key_points": [
+        "Pass an idempotency_key on event creation; Harbor returns the original event if the key was used in the last 24 hours.",
+        "Your consumer should key on event_id, not delivery_id — the same event can be retried across multiple deliveries.",
+        "Harbor's delivery retries are idempotent from its side: same event_id, same signature."
+      ],
+      "related_concepts": ["events", "deliveries", "retry-policy"],
+      "related_endpoints": ["events-create"]
+    },
+    {
+      "slug": "retry-policy",
+      "title": "Retry policy",
+      "summary": "Exponential backoff with jitter. Configurable per destination. Default: 6 retries over ~24 hours.",
+      "explanation": "When a delivery fails (non-2xx or network error), Harbor retries with exponential backoff. The default schedule is roughly 30s, 2m, 10m, 1h, 6h, 24h — each with ±20% jitter to avoid thundering herds. You can override this per destination: set max_retries, the base delay, the cap, and the total time budget. Destinations that consistently fail can be configured to circuit-break (pause automatically) after N consecutive failures.",
+      "key_points": [
+        "2xx = success. 5xx = retry. 4xx = retry ONLY IF the response header `Harbor-Retry-Hint: true` is present (otherwise dead-letter immediately).",
+        "Timeouts, connection refused, TLS errors = retry.",
+        "The total time budget is a hard ceiling — once it elapses, the delivery goes to the dead-letter queue regardless of remaining retries.",
+        "Circuit breaker: if a destination has 50+ consecutive failed deliveries, it's auto-paused and you get an email. New events to that destination are queued for 1 hour before dead-lettering."
+      ],
+      "related_concepts": ["deliveries", "dead-letter-queue", "destinations"],
+      "related_endpoints": ["destinations-api"]
+    },
+    {
+      "slug": "dead-letter-queue",
+      "title": "Dead-letter queue",
+      "summary": "Deliveries that exhausted retries land here. You can inspect, replay, or delete them.",
+      "explanation": "When a delivery exhausts its retry budget, it moves to the dead-letter queue (DLQ). Nothing is ever silently dropped — if you care about webhook reliability, you need to watch the DLQ. Most customers set up an alert ('ping me if DLQ depth > N') and a recurring job to triage.",
+      "key_points": [
+        "DLQ entries retain the last response body (first 4 KB) and the full retry history.",
+        "You can replay a DLQ entry at any time within 30 days; it re-enters the retry pipeline fresh.",
+        "DLQ entries older than 30 days are purged.",
+        "The DLQ is per-environment; live and test are separate."
+      ],
+      "related_concepts": ["deliveries", "retry-policy"],
+      "related_endpoints": ["dead-letter-queue-api"]
+    },
+    {
+      "slug": "event-types",
+      "title": "Event types",
+      "summary": "Harbor doesn't interpret event types. You define your own taxonomy — dotted strings, ideally hierarchical.",
+      "explanation": "An event's type is just a string like 'order.created' or 'user.subscription.updated'. Harbor treats it as opaque — it only matches it against subscriptions. But the taxonomy you pick matters because subscriptions can wildcard on it: a subscription for 'order.*' catches 'order.created', 'order.updated', and 'order.cancelled'. Pick a taxonomy that groups semantically — verb last is the conventional shape.",
+      "key_points": [
+        "Convention: noun.verb ('order.created') or noun.sub_noun.verb ('user.subscription.updated').",
+        "Wildcards match only at segment boundaries: 'order.*' matches 'order.created' but NOT 'order.line_item.added'.",
+        "Double-wildcard 'order.**' matches all sub-events.",
+        "Case is significant: 'Order.Created' and 'order.created' are different types."
+      ],
+      "related_concepts": ["events", "subscriptions"],
+      "related_endpoints": ["subscriptions-api"]
+    }
+  ],
+  "endpoint_groups": [
+    {
+      "slug": "destinations-api",
+      "title": "Destinations API",
+      "summary": "Create, list, read, update, delete destinations.",
+      "concept": "destinations",
+      "endpoints": [
+        {
+          "id": "create-destination",
+          "method": "POST",
+          "path": "/v1/destinations",
+          "title": "Create a destination",
+          "summary": "Register a new URL that Harbor should deliver events to.",
+          "params": [
+            {"name": "url", "type": "string", "required": true, "description": "The HTTPS URL Harbor will POST events to. Must be publicly reachable. HTTP is rejected outside test mode."},
+            {"name": "name", "type": "string", "required": false, "description": "Human-readable label; shown in the dashboard."},
+            {"name": "retry_policy", "type": "object", "required": false, "description": "Override defaults. See Retry policy."},
+            {"name": "metadata", "type": "object", "required": false, "description": "Arbitrary key/value pairs. Returned on reads. 8 KB limit."}
+          ],
+          "returns": "The created destination object including its signing_secret (shown ONCE; store it).",
+          "errors": ["invalid_url", "url_not_reachable", "over_destination_limit"]
+        },
+        {
+          "id": "list-destinations",
+          "method": "GET",
+          "path": "/v1/destinations",
+          "title": "List destinations",
+          "summary": "Paginated list of destinations.",
+          "params": [
+            {"name": "cursor", "type": "string", "required": false, "description": "Pagination cursor from a previous response."},
+            {"name": "limit", "type": "integer", "required": false, "description": "Page size, 1-100. Default 25."},
+            {"name": "status", "type": "string", "required": false, "description": "Filter by 'active' or 'paused'."}
+          ],
+          "returns": "A page of destinations plus a next_cursor.",
+          "errors": ["invalid_cursor"]
+        },
+        {
+          "id": "get-destination",
+          "method": "GET",
+          "path": "/v1/destinations/{id}",
+          "title": "Get a destination",
+          "summary": "Retrieve a destination by ID.",
+          "returns": "The destination object. Does NOT include the signing_secret — use the signing-keys API if you need to rotate.",
+          "errors": ["destination_not_found"]
+        },
+        {
+          "id": "update-destination",
+          "method": "PATCH",
+          "path": "/v1/destinations/{id}",
+          "title": "Update a destination",
+          "summary": "Modify a destination's URL, name, retry policy, or metadata.",
+          "params": [
+            {"name": "url", "type": "string", "required": false},
+            {"name": "name", "type": "string", "required": false},
+            {"name": "retry_policy", "type": "object", "required": false},
+            {"name": "metadata", "type": "object", "required": false},
+            {"name": "status", "type": "string", "required": false, "description": "'active' or 'paused'."}
+          ],
+          "returns": "The updated destination.",
+          "errors": ["destination_not_found", "invalid_url"]
+        },
+        {
+          "id": "delete-destination",
+          "method": "DELETE",
+          "path": "/v1/destinations/{id}",
+          "title": "Delete a destination",
+          "summary": "Permanently delete a destination. In-flight deliveries are cancelled.",
+          "returns": "204 No Content.",
+          "errors": ["destination_not_found"]
+        }
+      ]
+    },
+    {
+      "slug": "subscriptions-api",
+      "title": "Subscriptions API",
+      "summary": "Route events to destinations by type.",
+      "concept": "subscriptions",
+      "endpoints": [
+        {
+          "id": "create-subscription",
+          "method": "POST",
+          "path": "/v1/subscriptions",
+          "title": "Create a subscription",
+          "summary": "Create a new event-type → destination mapping.",
+          "params": [
+            {"name": "destination_id", "type": "string", "required": true},
+            {"name": "event_type", "type": "string", "required": true, "description": "Exact match or wildcard (e.g., 'order.*' or 'order.**')."},
+            {"name": "filter", "type": "object", "required": false, "description": "JSONPath-style filter on event body. Optional second gate after event_type."}
+          ],
+          "returns": "The subscription object.",
+          "errors": ["destination_not_found", "invalid_event_type_pattern", "invalid_filter"]
+        },
+        {
+          "id": "list-subscriptions",
+          "method": "GET",
+          "path": "/v1/subscriptions",
+          "title": "List subscriptions",
+          "summary": "Paginated list, optionally filtered by destination.",
+          "params": [
+            {"name": "destination_id", "type": "string", "required": false},
+            {"name": "cursor", "type": "string", "required": false},
+            {"name": "limit", "type": "integer", "required": false}
+          ],
+          "returns": "A page of subscriptions.",
+          "errors": []
+        },
+        {
+          "id": "delete-subscription",
+          "method": "DELETE",
+          "path": "/v1/subscriptions/{id}",
+          "title": "Delete a subscription",
+          "summary": "Remove a subscription. Future matching events will no longer route to this destination via this subscription.",
+          "returns": "204 No Content.",
+          "errors": ["subscription_not_found"]
+        }
+      ]
+    },
+    {
+      "slug": "events-api",
+      "title": "Events API",
+      "summary": "Ingest events and replay past events.",
+      "concept": "events",
+      "endpoints": [
+        {
+          "id": "events-create",
+          "method": "POST",
+          "path": "/v1/events",
+          "title": "Create an event",
+          "summary": "Submit an event. Harbor accepts it, matches subscriptions, and schedules deliveries.",
+          "params": [
+            {"name": "type", "type": "string", "required": true, "description": "The event type, e.g., 'order.created'."},
+            {"name": "body", "type": "object", "required": true, "description": "Arbitrary JSON up to 256 KB."},
+            {"name": "idempotency_key", "type": "string", "required": false, "description": "24-hour deduplication window. Recommended for all producers."},
+            {"name": "occurred_at", "type": "string", "required": false, "description": "ISO-8601 timestamp. Defaults to now."}
+          ],
+          "returns": "The event object with its event_id and a list of scheduled deliveries.",
+          "errors": ["invalid_event_type", "body_too_large", "idempotency_key_conflict"]
+        },
+        {
+          "id": "events-replay",
+          "method": "POST",
+          "path": "/v1/events/{id}/replay",
+          "title": "Replay an event",
+          "summary": "Re-deliver an existing event to all matching subscriptions (or a subset).",
+          "params": [
+            {"name": "destination_ids", "type": "array", "required": false, "description": "Replay only to these destinations. Omit to replay to all matching subscriptions."}
+          ],
+          "returns": "A list of new deliveries that were scheduled.",
+          "errors": ["event_not_found", "event_too_old", "destination_not_subscribed"]
+        }
+      ]
+    },
+    {
+      "slug": "deliveries-api",
+      "title": "Deliveries API",
+      "summary": "Inspect and force-retry deliveries.",
+      "concept": "deliveries",
+      "endpoints": [
+        {
+          "id": "list-deliveries",
+          "method": "GET",
+          "path": "/v1/deliveries",
+          "title": "List deliveries",
+          "summary": "Paginated list. Filter by event, destination, status, and time range.",
+          "params": [
+            {"name": "event_id", "type": "string", "required": false},
+            {"name": "destination_id", "type": "string", "required": false},
+            {"name": "status", "type": "string", "required": false, "description": "'pending', 'retrying', 'succeeded', 'dead'."},
+            {"name": "since", "type": "string", "required": false, "description": "ISO-8601. Inclusive lower bound."},
+            {"name": "until", "type": "string", "required": false, "description": "ISO-8601. Exclusive upper bound."},
+            {"name": "cursor", "type": "string", "required": false}
+          ],
+          "returns": "A page of deliveries with status, response codes, and retry counts.",
+          "errors": []
+        },
+        {
+          "id": "get-delivery",
+          "method": "GET",
+          "path": "/v1/deliveries/{id}",
+          "title": "Get a delivery",
+          "summary": "Full detail on one delivery, including the full retry history.",
+          "returns": "The delivery object with a retries[] array.",
+          "errors": ["delivery_not_found"]
+        },
+        {
+          "id": "retry-delivery",
+          "method": "POST",
+          "path": "/v1/deliveries/{id}/retry",
+          "title": "Force a delivery retry",
+          "summary": "Manually retry a delivery, bypassing the normal backoff schedule. Works on dead deliveries too.",
+          "returns": "The delivery object, now in 'retrying' state.",
+          "errors": ["delivery_not_found", "delivery_too_old"]
+        }
+      ]
+    },
+    {
+      "slug": "signing-keys-api",
+      "title": "Signing Keys API",
+      "summary": "Rotate signing secrets without downtime.",
+      "concept": "signing-verification",
+      "endpoints": [
+        {
+          "id": "rotate-signing-key",
+          "method": "POST",
+          "path": "/v1/destinations/{id}/signing-keys/rotate",
+          "title": "Rotate a destination's signing key",
+          "summary": "Generates a new signing secret. During the grace period (default 7 days), Harbor sends both old and new signatures so your customer can roll over.",
+          "params": [
+            {"name": "grace_period_days", "type": "integer", "required": false, "description": "How long to double-sign. 0-30. Default 7."}
+          ],
+          "returns": "The new signing_secret (shown ONCE) and the rotation timeline.",
+          "errors": ["destination_not_found", "rotation_in_progress"]
+        }
+      ]
+    },
+    {
+      "slug": "dead-letter-queue-api",
+      "title": "Dead-letter Queue API",
+      "summary": "Inspect and replay dead-lettered deliveries.",
+      "concept": "dead-letter-queue",
+      "endpoints": [
+        {
+          "id": "list-dlq",
+          "method": "GET",
+          "path": "/v1/dlq",
+          "title": "List dead-lettered deliveries",
+          "summary": "Paginated. Same filter shape as list-deliveries.",
+          "params": [
+            {"name": "destination_id", "type": "string", "required": false},
+            {"name": "since", "type": "string", "required": false},
+            {"name": "cursor", "type": "string", "required": false}
+          ],
+          "returns": "A page of dead deliveries.",
+          "errors": []
+        },
+        {
+          "id": "replay-dlq",
+          "method": "POST",
+          "path": "/v1/dlq/{delivery_id}/replay",
+          "title": "Replay a dead-lettered delivery",
+          "summary": "Re-enter the delivery into the retry pipeline. Retries start fresh.",
+          "returns": "The delivery, now 'retrying'.",
+          "errors": ["delivery_not_found", "delivery_too_old"]
+        }
+      ]
+    }
+  ],
+  "guides": [
+    {
+      "slug": "verifying-signatures",
+      "title": "Verifying signatures in your server",
+      "intent": "Teach the reader how to verify the Harbor-Signature header in their receiver.",
+      "key_points": [
+        "Read the raw request body BEFORE parsing JSON (signing happens over raw bytes).",
+        "Parse the `Harbor-Signature` header: `t=<timestamp>,v1=<hex>`.",
+        "Reject if timestamp is >5 minutes old (prevents replay).",
+        "Compute HMAC-SHA256 over `<timestamp>.<body>` with the signing secret.",
+        "Compare in constant time (e.g., crypto.timingSafeEqual in Node)."
+      ],
+      "code_examples": ["node", "python", "go"]
+    },
+    {
+      "slug": "handling-retries",
+      "title": "What your endpoint should return",
+      "intent": "Explain 2xx/4xx/5xx semantics from Harbor's perspective so the reader designs their receiver correctly.",
+      "key_points": [
+        "Return 2xx (any) as fast as possible to ack receipt. Don't do work on the hot path.",
+        "Return 5xx on unexpected errors; Harbor will retry with backoff.",
+        "Return 4xx only for 'this event is malformed' — Harbor treats 4xx as permanent unless Harbor-Retry-Hint: true is set.",
+        "Don't return 2xx and then error in your async worker — do the work first (or at least durably enqueue it) before ack'ing."
+      ],
+      "code_examples": ["node"]
+    },
+    {
+      "slug": "idempotent-consumers",
+      "title": "Building an idempotent receiver",
+      "intent": "Show the reader how to dedupe on event_id so retries don't cause double-processing.",
+      "key_points": [
+        "Key on event_id from the signed payload, not delivery_id.",
+        "Use an insert-if-not-exists pattern (e.g., Postgres ON CONFLICT DO NOTHING on a unique constraint).",
+        "Keep the seen-events table for at least 30 days (matches Harbor's event retention)."
+      ],
+      "code_examples": ["python", "go"]
+    },
+    {
+      "slug": "replaying-events",
+      "title": "Replaying events for debugging",
+      "intent": "Walk through a realistic debug flow: customer says 'I didn't receive X', you find the event, replay the delivery.",
+      "key_points": [
+        "Start from the event_id your application logged.",
+        "Use list-deliveries to see what happened to each destination.",
+        "If a delivery is 'dead', inspect the response body to see why the customer's endpoint rejected it.",
+        "Replay via retry-delivery once the customer has fixed their side."
+      ],
+      "code_examples": ["curl"]
+    },
+    {
+      "slug": "local-testing",
+      "title": "Testing Harbor locally",
+      "intent": "Show how to receive webhooks on localhost using the harbor CLI + a local tunnel.",
+      "key_points": [
+        "Install the harbor CLI: npm i -g @harbor/cli.",
+        "Run 'harbor listen --forward-to localhost:3000' — this opens a tunnel and prints a public URL.",
+        "Register that URL as a destination in test mode.",
+        "Events POSTed to test-mode destinations never hit your production customers."
+      ],
+      "code_examples": ["bash"]
+    }
+  ],
+  "troubleshooting": [
+    {
+      "slug": "hmac-signature-mismatch",
+      "title": "HMAC signature mismatch",
+      "symptoms": ["Receiver rejects every delivery with 401 or 403.", "Harbor dashboard shows 'invalid signature' on the destination's response body."],
+      "causes": [
+        "Signing the parsed JSON instead of the raw request body (middleware parsed it for you).",
+        "Using the wrong signing secret (e.g., copied from a different destination).",
+        "Signing without the timestamp prefix — the format is `<timestamp>.<body>`, not just `<body>`.",
+        "Character encoding mismatch — UTF-8 bytes, not string."
+      ],
+      "fixes": [
+        "Capture raw body bytes before JSON parsing. In Express, use express.raw({type: 'application/json'}) on the webhook route.",
+        "Double-check you're reading the destination's signing_secret, not your API key.",
+        "Include the timestamp: hmac(secret, `${timestamp}.${rawBody}`).",
+        "Verify constant-time comparison (timingSafeEqual in Node, hmac.compare_digest in Python)."
+      ]
+    },
+    {
+      "slug": "all-deliveries-failing",
+      "title": "All deliveries to one destination failing at once",
+      "symptoms": ["DLQ depth suddenly jumps for one destination.", "Harbor-Signature verification works in test but fails in prod."],
+      "causes": [
+        "Customer's origin returned a maintenance page (5xx HTML) that your receiver treats as 'unknown error'.",
+        "TLS certificate expired on the customer's destination URL.",
+        "DNS change routing traffic to a placeholder.",
+        "Circuit breaker tripped — Harbor auto-paused the destination."
+      ],
+      "fixes": [
+        "Check the destination's status in the dashboard. If 'paused', the circuit breaker tripped.",
+        "Look at the last successful delivery's response body to compare against current failures.",
+        "Run a manual curl against the destination URL from outside your network.",
+        "Once the customer confirms their side is healthy, un-pause and use replay-dlq to catch up."
+      ]
+    },
+    {
+      "slug": "retry-storms",
+      "title": "Retry storms after an outage",
+      "symptoms": ["Huge spike in delivery attempts after a customer's endpoint comes back online.", "Customer complaining they got the same webhook 12 times in a second."],
+      "causes": [
+        "Harbor's default retry schedule is bursty by design — when a destination comes back, all backlogged retries fire within a short window.",
+        "No jitter configured on a custom retry policy."
+      ],
+      "fixes": [
+        "Enable per-destination rate limiting (set max_concurrent_deliveries on the destination).",
+        "For destinations you know are fragile, configure a longer base delay in the retry policy.",
+        "Coordinate with the customer: 'expect a burst when you come back online; here's how to smooth it on your side.'"
+      ]
+    },
+    {
+      "slug": "clock-drift",
+      "title": "Timestamp validation failing",
+      "symptoms": ["Sporadic signature rejections even though the HMAC is correct.", "Errors cluster around the 5-minute replay protection window."],
+      "causes": [
+        "Receiver's clock drifted from UTC.",
+        "Receiver is using local time instead of UTC for the timestamp comparison."
+      ],
+      "fixes": [
+        "Run NTP on the receiver (or equivalent managed time sync).",
+        "Always compare against UTC. Unix timestamps are seconds since the epoch, timezone-agnostic.",
+        "Widen the window to 10 minutes if you operate across unreliable networks."
+      ]
+    },
+    {
+      "slug": "duplicate-events",
+      "title": "Receiver is processing the same event twice",
+      "symptoms": ["Same order_id billed twice.", "Two confirmation emails for one action."],
+      "causes": [
+        "Harbor retried the delivery because the receiver's 2xx was delayed and Harbor timed out.",
+        "Receiver acked before persisting — the first ack succeeded from Harbor's side but the work was lost.",
+        "Receiver doesn't check event_id before acting."
+      ],
+      "fixes": [
+        "Key your side-effects on event_id. Insert-if-not-exists before doing the expensive work.",
+        "Ack fast (sub-second 2xx), then do work async — but only if you durably enqueue the work before ack'ing.",
+        "Raise your Harbor timeout config if your processing is fundamentally slow (not recommended; prefer async)."
+      ]
+    }
+  ],
+  "reference_pages": [
+    {
+      "slug": "errors",
+      "title": "Errors",
+      "intent": "Enumerate Harbor's error codes with causes and typical fixes.",
+      "content_source": "collected from endpoint definitions"
+    },
+    {
+      "slug": "rate-limits",
+      "title": "Rate limits",
+      "intent": "Document the 1000 events/sec ingest and 60 req/min management limits, and what happens when you hit them."
+    },
+    {
+      "slug": "webhooks-spec",
+      "title": "Webhook specification",
+      "intent": "The exact shape of what Harbor sends to your destinations: headers, body, signature format.",
+      "key_points": [
+        "Headers: Content-Type, Harbor-Signature, Harbor-Event-Id, Harbor-Event-Type, Harbor-Delivery-Id, Harbor-Retry-Count, Harbor-Timestamp.",
+        "Body: the exact event body you submitted, unmodified, as JSON.",
+        "Method: always POST.",
+        "Timeout: Harbor waits 30 seconds for a response before treating it as a failure."
+      ]
+    }
+  ],
+  "page_plan": [
+    {"slug": "index", "title": "Harbor", "kind": "home", "sidebar_weight": 0},
+    {"slug": "getting-started/install", "title": "Install", "kind": "getting-started", "sidebar_weight": 1},
+    {"slug": "getting-started/quickstart", "title": "Quickstart", "kind": "getting-started", "sidebar_weight": 2},
+    {"slug": "concepts/destinations", "title": "Destinations", "kind": "concept", "source": "concepts.destinations"},
+    {"slug": "concepts/subscriptions", "title": "Subscriptions", "kind": "concept", "source": "concepts.subscriptions"},
+    {"slug": "concepts/events", "title": "Events", "kind": "concept", "source": "concepts.events"},
+    {"slug": "concepts/deliveries", "title": "Deliveries", "kind": "concept", "source": "concepts.deliveries"},
+    {"slug": "concepts/signing-verification", "title": "Signing & verification", "kind": "concept", "source": "concepts.signing-verification"},
+    {"slug": "concepts/idempotency", "title": "Idempotency", "kind": "concept", "source": "concepts.idempotency"},
+    {"slug": "concepts/retry-policy", "title": "Retry policy", "kind": "concept", "source": "concepts.retry-policy"},
+    {"slug": "concepts/dead-letter-queue", "title": "Dead-letter queue", "kind": "concept", "source": "concepts.dead-letter-queue"},
+    {"slug": "concepts/event-types", "title": "Event types", "kind": "concept", "source": "concepts.event-types"},
+    {"slug": "api/destinations", "title": "Destinations API", "kind": "api", "source": "endpoint_groups.destinations-api"},
+    {"slug": "api/subscriptions", "title": "Subscriptions API", "kind": "api", "source": "endpoint_groups.subscriptions-api"},
+    {"slug": "api/events", "title": "Events API", "kind": "api", "source": "endpoint_groups.events-api"},
+    {"slug": "api/deliveries", "title": "Deliveries API", "kind": "api", "source": "endpoint_groups.deliveries-api"},
+    {"slug": "api/signing-keys", "title": "Signing Keys API", "kind": "api", "source": "endpoint_groups.signing-keys-api"},
+    {"slug": "api/dead-letter-queue", "title": "Dead-letter Queue API", "kind": "api", "source": "endpoint_groups.dead-letter-queue-api"},
+    {"slug": "guides/verifying-signatures", "title": "Verifying signatures", "kind": "guide", "source": "guides.verifying-signatures"},
+    {"slug": "guides/handling-retries", "title": "Handling retries", "kind": "guide", "source": "guides.handling-retries"},
+    {"slug": "guides/idempotent-consumers", "title": "Idempotent consumers", "kind": "guide", "source": "guides.idempotent-consumers"},
+    {"slug": "guides/replaying-events", "title": "Replaying events", "kind": "guide", "source": "guides.replaying-events"},
+    {"slug": "guides/local-testing", "title": "Local testing", "kind": "guide", "source": "guides.local-testing"},
+    {"slug": "troubleshooting/hmac-signature-mismatch", "title": "HMAC signature mismatch", "kind": "troubleshooting", "source": "troubleshooting.hmac-signature-mismatch"},
+    {"slug": "troubleshooting/all-deliveries-failing", "title": "All deliveries failing", "kind": "troubleshooting", "source": "troubleshooting.all-deliveries-failing"},
+    {"slug": "troubleshooting/retry-storms", "title": "Retry storms", "kind": "troubleshooting", "source": "troubleshooting.retry-storms"},
+    {"slug": "troubleshooting/clock-drift", "title": "Clock drift", "kind": "troubleshooting", "source": "troubleshooting.clock-drift"},
+    {"slug": "troubleshooting/duplicate-events", "title": "Duplicate events", "kind": "troubleshooting", "source": "troubleshooting.duplicate-events"},
+    {"slug": "reference/errors", "title": "Errors", "kind": "reference", "source": "reference_pages.errors"},
+    {"slug": "reference/rate-limits", "title": "Rate limits", "kind": "reference", "source": "reference_pages.rate-limits"},
+    {"slug": "reference/webhooks-spec", "title": "Webhook specification", "kind": "reference", "source": "reference_pages.webhooks-spec"}
+  ]
+}

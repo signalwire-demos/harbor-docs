@@ -1,0 +1,23 @@
+---
+// DocsBotHead.astro — Starlight component override that adds:
+//   1. Astro's <ClientRouter /> (required for DocsBot widget persistence).
+//   2. The Harbor typographic system (Fraunces display, IBM Plex Sans,
+//      IBM Plex Mono) — loaded via Google Fonts.
+//
+// See sibling DocsBotFooter for the widget mount. See src/styles/harbor.css
+// for the full visual system.
+
+import Default from '@astrojs/starlight/components/Head.astro';
+import { ClientRouter } from 'astro:transitions';
+---
+
+<Default><slot /></Default>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:ital,wght@0,300..700;1,400..600&display=swap"
+/>
+
+<ClientRouter />

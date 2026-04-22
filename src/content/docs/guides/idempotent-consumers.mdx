@@ -1,0 +1,52 @@
+---
+title: "Building an idempotent receiver"
+description: "Show the reader how to dedupe on event_id so retries don't cause double-processing."
+---
+
+This guide walks through show the reader how to dedupe on event_id so retries don't cause double-processing.
+
+## What you need to know
+
+- Key on event_id from the signed payload, not delivery_id.
+- Use an insert-if-not-exists pattern (e.g., Postgres ON CONFLICT DO NOTHING on a unique constraint).
+- Keep the seen-events table for at least 30 days (matches Harbor's event retention).
+
+## Example
+
+### Python (Flask)
+
+```python
+import psycopg
+# Table: CREATE TABLE seen_events (event_id text PRIMARY KEY, seen_at timestamptz DEFAULT now());
+
+def process(event):
+    event_id = event["event_id"]  # from Harbor-Event-Id header or event body
+    with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO seen_events (event_id) VALUES (%s) ON CONFLICT DO NOTHING RETURNING event_id",
+            (event_id,),
+        )
+        inserted = cur.fetchone() is not None
+    if not inserted:
+        # Duplicate — Harbor retried a delivery we already handled.
+        return
+    do_actual_work(event)
+```
+
+### Go (net/http)
+
+```go
+// Assumes a unique constraint on seen_events.event_id.
+func process(db *sql.DB, event Event) error {
+    res, err := db.Exec(
+        "INSERT INTO seen_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING",
+        event.EventID,
+    )
+    if err != nil { return err }
+    n, _ := res.RowsAffected()
+    if n == 0 {
+        return nil  // already processed
+    }
+    return doActualWork(event)
+}
+```

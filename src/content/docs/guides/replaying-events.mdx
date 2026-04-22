@@ -1,0 +1,37 @@
+---
+title: "Replaying events for debugging"
+description: "Walk through a realistic debug flow: customer says 'I didn't receive X', you find the event, replay the delivery."
+---
+
+This guide walks through walk through a realistic debug flow: customer says 'i didn't receive x', you find the event, replay the delivery.
+
+## What you need to know
+
+- Start from the event_id your application logged.
+- Use list-deliveries to see what happened to each destination.
+- If a delivery is 'dead', inspect the response body to see why the customer's endpoint rejected it.
+- Replay via retry-delivery once the customer has fixed their side.
+
+## Example
+
+### curl
+
+```curl
+# 1. You have an event_id from your application log.
+EVENT_ID=evt_01HXYZ
+
+# 2. See what happened across all destinations.
+curl https://api.harbor.example/v1/deliveries?event_id=$EVENT_ID \
+  -H "Authorization: Bearer hk_live_your_api_key"
+
+# 3. The response shows three deliveries: two succeeded, one is dead.
+DEAD_DELIVERY=del_01ABC
+
+# 4. Look at the dead delivery's detail for the response body.
+curl https://api.harbor.example/v1/deliveries/$DEAD_DELIVERY \
+  -H "Authorization: Bearer hk_live_your_api_key"
+
+# 5. Customer fixed their side. Force a retry.
+curl -X POST https://api.harbor.example/v1/deliveries/$DEAD_DELIVERY/retry \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```

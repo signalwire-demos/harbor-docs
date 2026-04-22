@@ -1,0 +1,32 @@
+---
+// DocsBotFooter.astro — Starlight component override for the per-page Footer.
+//
+// Why a Footer override? We need a mount point that renders on every Starlight
+// page. Footer is the cheapest option — we render the default Footer unchanged
+// and tack the voice widget on alongside it. The widget uses position:fixed
+// so it doesn't actually live inside the footer visually; the footer is just
+// where React attaches.
+//
+// transition:persist="docsbot" keeps the widget's React state (call state,
+// collapse state, SDK connection) alive across Starlight's client-side page
+// transitions. Without it, the widget remounts on every nav and the call drops.
+//
+// The SignalWire UMD bundle loads from /signalwire.js (copied to public/ by
+// the build). is:inline keeps it out of Astro's bundling pipeline — the SDK
+// is already an optimized UMD, we don't need Vite to touch it.
+
+import Default from '@astrojs/starlight/components/Footer.astro';
+import DocsBotWidget from './DocsBotWidget.tsx';
+
+const agentUrl = import.meta.env.PUBLIC_DOCSBOT_AGENT_URL ?? '';
+---
+
+<Default><slot /></Default>
+
+<script src="/signalwire.js" is:inline></script>
+
+<DocsBotWidget
+  client:load
+  transition:persist="docsbot"
+  agentUrl={agentUrl}
+/>

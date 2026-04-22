@@ -1,0 +1,23 @@
+---
+title: "Receiver is processing the same event twice"
+description: "Troubleshooting: Receiver is processing the same event twice."
+---
+
+This page covers what "receiver is processing the same event twice" usually means and how to recover.
+
+## Symptoms
+
+- Same order_id billed twice.
+- Two confirmation emails for one action.
+
+## What usually causes it
+
+- Harbor retried the delivery because the receiver's 2xx was delayed and Harbor timed out.
+- Receiver acked before persisting — the first ack succeeded from Harbor's side but the work was lost.
+- Receiver doesn't check event_id before acting.
+
+## How to fix
+
+- Key your side-effects on event_id. Insert-if-not-exists before doing the expensive work.
+- Ack fast (sub-second 2xx), then do work async — but only if you durably enqueue the work before ack'ing.
+- Raise your Harbor timeout config if your processing is fundamentally slow (not recommended; prefer async).

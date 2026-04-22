@@ -1,0 +1,22 @@
+---
+title: "Timestamp validation failing"
+description: "Troubleshooting: Timestamp validation failing."
+---
+
+This page covers what "timestamp validation failing" usually means and how to recover.
+
+## Symptoms
+
+- Sporadic signature rejections even though the HMAC is correct.
+- Errors cluster around the 5-minute replay protection window.
+
+## What usually causes it
+
+- Receiver's clock drifted from UTC.
+- Receiver is using local time instead of UTC for the timestamp comparison.
+
+## How to fix
+
+- Run NTP on the receiver (or equivalent managed time sync).
+- Always compare against UTC. Unix timestamps are seconds since the epoch, timezone-agnostic.
+- Widen the window to 10 minutes if you operate across unreliable networks.

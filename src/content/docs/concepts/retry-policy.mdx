@@ -1,0 +1,20 @@
+---
+title: "Retry policy"
+description: "Exponential backoff with jitter. Configurable per destination. Default: 6 retries over ~24 hours."
+---
+
+When a delivery fails (non-2xx or network error), Harbor retries with exponential backoff. The default schedule is roughly 30s, 2m, 10m, 1h, 6h, 24h — each with ±20% jitter to avoid thundering herds. You can override this per destination: set max_retries, the base delay, the cap, and the total time budget. Destinations that consistently fail can be configured to circuit-break (pause automatically) after N consecutive failures.
+
+## What to know
+
+- 2xx = success. 5xx = retry. 4xx = retry ONLY IF the response header `Harbor-Retry-Hint: true` is present (otherwise dead-letter immediately).
+- Timeouts, connection refused, TLS errors = retry.
+- The total time budget is a hard ceiling — once it elapses, the delivery goes to the dead-letter queue regardless of remaining retries.
+- Circuit breaker: if a destination has 50+ consecutive failed deliveries, it's auto-paused and you get an email. New events to that destination are queued for 1 hour before dead-lettering.
+
+## Related
+
+- [Deliveries](/concepts/deliveries/)
+- [Dead-letter queue](/concepts/dead-letter-queue/)
+- [Destinations](/concepts/destinations/)
+- [Destinations API](/api/destinations/)

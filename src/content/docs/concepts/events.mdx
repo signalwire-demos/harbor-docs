@@ -1,0 +1,21 @@
+---
+title: "Events"
+description: "The JSON payload you POST to Harbor. Has a type, a body, and an optional idempotency key."
+---
+
+Events are the things Harbor delivers. When you POST an event, Harbor accepts it, figures out which subscriptions match, and schedules a delivery for each matching destination. The event itself is stored durably; deliveries are the runtime attempts.
+
+## What to know
+
+- An event's type is a dotted string like 'order.created'. Harbor doesn't interpret the type — you define your own taxonomy.
+- The event body can be any valid JSON up to 256 KB.
+- Include an idempotency_key to guarantee that sending the same event twice produces one event (not two).
+- Events are retained for 30 days by default; deliveries can be replayed within that window.
+
+## Related
+
+- [Event types](/concepts/event-types/)
+- [Idempotency](/concepts/idempotency/)
+- [Deliveries](/concepts/deliveries/)
+- `events-create`
+- `events-replay`

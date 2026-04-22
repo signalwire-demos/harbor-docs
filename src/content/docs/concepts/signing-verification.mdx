@@ -1,0 +1,19 @@
+---
+title: "Signing and verification"
+description: "Every delivery includes an HMAC-SHA256 signature so your customers can verify the payload is from Harbor."
+---
+
+Harbor signs every delivery with the destination's signing secret. The signature goes in the `Harbor-Signature` header. Your customer's server computes the same HMAC over the raw request body and rejects the request if the signatures don't match. This is how Stripe and GitHub webhooks work too — Harbor just hosts the signing and key rotation for you.
+
+## What to know
+
+- Algorithm: HMAC-SHA256 over the raw request body.
+- The signature header format: `Harbor-Signature: t=<unix_ts>,v1=<hex_signature>`.
+- Include the timestamp in the signed payload to prevent replay attacks: sign t + '.' + body.
+- Signing keys rotate on demand; Harbor sends both old and new signatures during a rotation grace period so customers can roll over.
+- The signing secret is NOT the same as your API key — don't confuse them.
+
+## Related
+
+- [Destinations](/concepts/destinations/)
+- [Signing Keys API](/api/signing-keys/)

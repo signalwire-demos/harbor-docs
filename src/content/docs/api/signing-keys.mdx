@@ -1,0 +1,40 @@
+---
+title: "Signing Keys API"
+description: "Rotate signing secrets without downtime."
+---
+
+Rotate signing secrets without downtime.
+
+See the [Signing and verification](/concepts/signing-verification/) concept for background.
+
+## Rotate a destination's signing key
+
+`POST /v1/destinations/{id}/signing-keys/rotate`
+
+Generates a new signing secret. During the grace period (default 7 days), Harbor sends both old and new signatures so your customer can roll over.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `grace_period_days` | integer | no | How long to double-sign. 0-30. Default 7. |
+
+### Returns
+
+The new signing_secret (shown ONCE) and the rotation timeline.
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/destinations/dest_01HXYZ/signing-keys/rotate \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "grace_period_days": 7
+}'
+```
+
+### Errors
+
+- `destination_not_found`
+- `rotation_in_progress`

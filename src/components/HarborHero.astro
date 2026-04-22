@@ -1,0 +1,483 @@
+---
+// HarborHero.astro — Starlight <Hero> override for the splash page.
+//
+// Replaces the default center-aligned title block with an editorial
+// "tide-chart" hero: coordinates eyebrow, oversized Fraunces headline,
+// italic lede, two CTA buttons, and a live-looking delivery-status panel
+// that sits beside the copy on wide viewports. The decorative panel is
+// purely visual; it mirrors the aesthetic of Harbor's actual product
+// (webhook deliveries arriving, retrying, settling).
+
+import { LinkButton } from '@astrojs/starlight/components';
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero ?? {};
+---
+
+<div class="harbor-hero">
+  <div class="harbor-hero__grid">
+    <div class="harbor-hero__text">
+      <div class="harbor-hero__eyebrow">
+        <span class="harbor-hero__coord">N 40° 42′ 46″ · W 74° 00′ 21″</span>
+        <span class="harbor-hero__rev">REV 2024.11 · EDITION IV</span>
+      </div>
+
+      <h1 class="harbor-hero__title" set:html={title} />
+
+      {
+        tagline && (
+          <p class="harbor-hero__tagline" set:html={tagline} />
+        )
+      }
+
+      <div class="harbor-hero__byline">
+        <span class="harbor-hero__dot" />
+        <span>All systems — last 30 days · 99.998 % delivered on first try</span>
+      </div>
+
+      {
+        actions.length > 0 && (
+          <div class="harbor-hero__actions">
+            {actions.map(({ attrs = {}, icon, link, text, variant }) => (
+              <LinkButton
+                {...attrs}
+                href={link}
+                variant={variant}
+                icon={icon?.name}
+                iconPlacement={icon?.html ? 'start' : 'end'}
+              >
+                {text}
+              </LinkButton>
+            ))}
+          </div>
+        )
+      }
+
+      <dl class="harbor-hero__specs">
+        <div>
+          <dt>Uptime</dt>
+          <dd>99.998 %</dd>
+        </div>
+        <div>
+          <dt>Signed</dt>
+          <dd>HMAC-SHA256</dd>
+        </div>
+        <div>
+          <dt>Retry budget</dt>
+          <dd>72 hours</dd>
+        </div>
+        <div>
+          <dt>Edge</dt>
+          <dd>14 regions</dd>
+        </div>
+      </dl>
+    </div>
+
+    <aside class="harbor-panel" aria-label="Recent deliveries">
+      <header class="harbor-panel__header">
+        <span class="harbor-panel__tag">TRANSMITTER · LIVE</span>
+        <span class="harbor-panel__timestamp">
+          <span class="harbor-panel__pulse" />
+          transmitting
+        </span>
+      </header>
+
+      <ol class="harbor-panel__feed">
+        <li data-status="ok">
+          <span class="harbor-panel__time">14:02:09</span>
+          <span class="harbor-panel__evt">order.created</span>
+          <span class="harbor-panel__dest">dest_01HXYZ</span>
+          <span class="harbor-panel__badge" data-status="ok">200 · 82ms</span>
+        </li>
+        <li data-status="ok">
+          <span class="harbor-panel__time">14:02:07</span>
+          <span class="harbor-panel__evt">payment.succeeded</span>
+          <span class="harbor-panel__dest">dest_02KQRT</span>
+          <span class="harbor-panel__badge" data-status="ok">200 · 91ms</span>
+        </li>
+        <li data-status="retry">
+          <span class="harbor-panel__time">14:02:03</span>
+          <span class="harbor-panel__evt">invoice.paid</span>
+          <span class="harbor-panel__dest">dest_03VWXZ</span>
+          <span class="harbor-panel__badge" data-status="retry">retry · t+4s</span>
+        </li>
+        <li data-status="ok">
+          <span class="harbor-panel__time">14:01:58</span>
+          <span class="harbor-panel__evt">customer.updated</span>
+          <span class="harbor-panel__dest">dest_04ABCD</span>
+          <span class="harbor-panel__badge" data-status="ok">200 · 64ms</span>
+        </li>
+        <li data-status="ok">
+          <span class="harbor-panel__time">14:01:55</span>
+          <span class="harbor-panel__evt">order.shipped</span>
+          <span class="harbor-panel__dest">dest_05EFGH</span>
+          <span class="harbor-panel__badge" data-status="ok">201 · 112ms</span>
+        </li>
+        <li data-status="dlq">
+          <span class="harbor-panel__time">14:01:49</span>
+          <span class="harbor-panel__evt">refund.issued</span>
+          <span class="harbor-panel__dest">dest_06IJKL</span>
+          <span class="harbor-panel__badge" data-status="dlq">DLQ · exhausted</span>
+        </li>
+        <li data-status="ok">
+          <span class="harbor-panel__time">14:01:41</span>
+          <span class="harbor-panel__evt">order.created</span>
+          <span class="harbor-panel__dest">dest_07MNOP</span>
+          <span class="harbor-panel__badge" data-status="ok">200 · 77ms</span>
+        </li>
+      </ol>
+
+      <footer class="harbor-panel__footer">
+        <span>queue depth · 3</span>
+        <span>p95 · 138 ms</span>
+        <span>retry budget · 100 %</span>
+      </footer>
+    </aside>
+  </div>
+
+  <div class="harbor-hero__chart" aria-hidden="true">
+    <span>0000</span><span>0400</span><span>0800</span><span>1200</span><span>1600</span><span>2000</span><span>2400</span>
+  </div>
+</div>
+
+<style is:global>
+  .harbor-hero {
+    position: relative;
+    padding: clamp(2rem, 2rem + 2vw, 4rem) 0 2.5rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+    margin-bottom: 3rem;
+  }
+
+  .harbor-hero__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  @media (min-width: 56rem) {
+    .harbor-hero__grid {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 3rem;
+    }
+  }
+
+  /* --- Left column: headline + metadata ---------------------------------- */
+
+  .harbor-hero__eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    font-family: var(--harbor-font-mono);
+    font-size: clamp(0.6rem, 0.55rem + 0.25vw, 0.7rem);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    color: var(--harbor-amber-500);
+    text-transform: uppercase;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+    margin-bottom: 1.5rem;
+  }
+
+  .harbor-hero__rev {
+    color: var(--sl-color-gray-3);
+  }
+
+  .harbor-hero__title {
+    font-family: var(--harbor-font-display);
+    font-variation-settings: 'opsz' 144, 'SOFT' 40, 'WONK' 1;
+    font-weight: 420;
+    font-size: clamp(3rem, 1.8rem + 5.2vw, 6.2rem);
+    line-height: 0.92;
+    letter-spacing: -0.035em;
+    color: var(--sl-color-white);
+    margin: 0 0 1.25rem 0;
+  }
+
+  .harbor-hero__tagline {
+    font-family: var(--harbor-font-display);
+    font-variation-settings: 'opsz' 24, 'SOFT' 90, 'WONK' 0;
+    font-style: italic;
+    font-weight: 350;
+    font-size: clamp(1.2rem, 1rem + 0.9vw, 1.55rem);
+    line-height: 1.35;
+    color: var(--sl-color-gray-2);
+    margin: 0 0 1.5rem 0;
+    max-width: 34ch;
+  }
+
+  .harbor-hero__byline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-family: var(--harbor-font-mono);
+    font-size: 0.72rem;
+    color: var(--sl-color-gray-2);
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-gray-7) 55%, transparent);
+    margin-bottom: 2rem;
+    max-width: 100%;
+  }
+
+  .harbor-hero__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--harbor-sea-500);
+    box-shadow: 0 0 10px var(--harbor-sea-500);
+    animation: harborPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes harborPulse {
+    0%, 100% { opacity: 0.65; }
+    50%      { opacity: 1; }
+  }
+
+  .harbor-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* Spec table — engineering factsheet */
+  .harbor-hero__specs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--sl-color-hairline);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--harbor-radius-md);
+    overflow: hidden;
+    margin: 0;
+  }
+
+  @media (min-width: 48rem) {
+    .harbor-hero__specs {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .harbor-hero__specs > div {
+    background: var(--sl-color-bg);
+    padding: 0.85rem 1rem;
+  }
+
+  .harbor-hero__specs dt {
+    font-family: var(--harbor-font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+    margin-bottom: 0.25rem;
+  }
+
+  .harbor-hero__specs dd {
+    font-family: var(--harbor-font-display);
+    font-variation-settings: 'opsz' 36, 'SOFT' 30, 'WONK' 0;
+    font-weight: 500;
+    font-size: clamp(0.95rem, 0.8rem + 0.5vw, 1.1rem);
+    letter-spacing: -0.01em;
+    color: var(--sl-color-white);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* --- Right column: live delivery feed ---------------------------------- */
+
+  .harbor-panel {
+    font-family: var(--harbor-font-mono);
+    font-size: 0.78rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: var(--harbor-radius-md);
+    background:
+      linear-gradient(180deg,
+        color-mix(in srgb, var(--sl-color-gray-7) 60%, transparent) 0%,
+        color-mix(in srgb, var(--sl-color-black) 80%, transparent) 100%);
+    box-shadow:
+      0 30px 60px -30px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 3%, transparent);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .harbor-panel::before {
+    /* Faint grid on the panel to evoke a chart plotter */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(138,167,193,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(138,167,193,0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  .harbor-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+    background: color-mix(in srgb, var(--sl-color-black) 70%, transparent);
+  }
+
+  .harbor-panel__tag {
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    color: var(--harbor-amber-500);
+  }
+
+  .harbor-panel__timestamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+  }
+
+  .harbor-panel__pulse {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--harbor-sea-500);
+    box-shadow: 0 0 8px var(--harbor-sea-500);
+    animation: harborPulse 1.6s ease-in-out infinite;
+  }
+
+  .harbor-panel__feed {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .harbor-panel__feed li {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: 'time evt badge' 'time dest badge';
+    column-gap: 0.75rem;
+    row-gap: 0.15rem;
+    align-items: center;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--sl-color-hairline-light);
+    position: relative;
+    animation: harborRowIn 500ms ease-out both;
+  }
+
+  .harbor-panel__feed li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--harbor-sea-500);
+  }
+
+  .harbor-panel__feed li[data-status='retry']::before { background: var(--harbor-amber-500); }
+  .harbor-panel__feed li[data-status='dlq']::before   { background: var(--harbor-flag-red); }
+
+  /* Stagger the intro animation */
+  .harbor-panel__feed li:nth-child(1) { animation-delay: 0ms; }
+  .harbor-panel__feed li:nth-child(2) { animation-delay: 80ms; }
+  .harbor-panel__feed li:nth-child(3) { animation-delay: 160ms; }
+  .harbor-panel__feed li:nth-child(4) { animation-delay: 240ms; }
+  .harbor-panel__feed li:nth-child(5) { animation-delay: 320ms; }
+  .harbor-panel__feed li:nth-child(6) { animation-delay: 400ms; }
+  .harbor-panel__feed li:nth-child(7) { animation-delay: 480ms; }
+
+  @keyframes harborRowIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .harbor-panel__feed li:last-child {
+    border-bottom: none;
+  }
+
+  .harbor-panel__time {
+    grid-area: time;
+    color: var(--sl-color-gray-3);
+    font-size: 0.72rem;
+  }
+
+  .harbor-panel__evt {
+    grid-area: evt;
+    color: var(--sl-color-white);
+    font-weight: 500;
+  }
+
+  .harbor-panel__dest {
+    grid-area: dest;
+    color: var(--sl-color-gray-4);
+    font-size: 0.7rem;
+  }
+
+  .harbor-panel__badge {
+    grid-area: badge;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .harbor-panel__badge[data-status='ok']    { color: var(--harbor-sea-500); }
+  .harbor-panel__badge[data-status='retry'] { color: var(--harbor-amber-500); }
+  .harbor-panel__badge[data-status='dlq']   { color: var(--harbor-flag-red); }
+
+  .harbor-panel__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 1rem;
+    border-top: 1px solid var(--sl-color-hairline);
+    background: color-mix(in srgb, var(--sl-color-black) 70%, transparent);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* --- Bottom tide chart ruler ------------------------------------------- */
+
+  .harbor-hero__chart {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 3rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--sl-color-hairline);
+    position: relative;
+    font-family: var(--harbor-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--sl-color-gray-4);
+  }
+
+  .harbor-hero__chart::before {
+    /* Tick marks along the ruler */
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 6px;
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        var(--sl-color-gray-5) 0,
+        var(--sl-color-gray-5) 1px,
+        transparent 1px,
+        transparent 2.5%
+      );
+  }
+</style>

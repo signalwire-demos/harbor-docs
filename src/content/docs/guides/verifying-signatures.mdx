@@ -1,0 +1,129 @@
+---
+title: "Verifying signatures in your server"
+description: "Teach the reader how to verify the Harbor-Signature header in their receiver."
+---
+
+This guide walks through teach the reader how to verify the harbor-signature header in their receiver.
+
+## What you need to know
+
+- Read the raw request body BEFORE parsing JSON (signing happens over raw bytes).
+- Parse the `Harbor-Signature` header: `t=<timestamp>,v1=<hex>`.
+- Reject if timestamp is >5 minutes old (prevents replay).
+- Compute HMAC-SHA256 over `<timestamp>.<body>` with the signing secret.
+- Compare in constant time (e.g., crypto.timingSafeEqual in Node).
+
+## Example
+
+### JavaScript (Node.js / Express)
+
+```js
+import express from 'express';
+import crypto from 'node:crypto';
+
+const app = express();
+const SIGNING_SECRET = process.env.HARBOR_SIGNING_SECRET;
+
+// IMPORTANT: express.raw — we need the raw bytes, not parsed JSON.
+app.post('/webhooks/harbor', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.header('Harbor-Signature') || '';
+  const [tPart, v1Part] = sig.split(',');
+  const timestamp = tPart?.split('=')[1];
+  const signature = v1Part?.split('=')[1];
+
+  if (!timestamp || !signature) return res.sendStatus(401);
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return res.sendStatus(401);
+
+  const expected = crypto
+    .createHmac('sha256', SIGNING_SECRET)
+    .update(timestamp + '.' + req.body.toString('utf8'))
+    .digest('hex');
+
+  const ok = crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+  if (!ok) return res.sendStatus(401);
+
+  const event = JSON.parse(req.body.toString('utf8'));
+  // ... process event.type, event.body ...
+  res.sendStatus(200);
+});
+```
+
+### Python (Flask)
+
+```python
+import hmac, hashlib, time
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+SIGNING_SECRET = os.environ["HARBOR_SIGNING_SECRET"].encode()
+
+@app.post("/webhooks/harbor")
+def receive():
+    sig = request.headers.get("Harbor-Signature", "")
+    parts = dict(p.split("=", 1) for p in sig.split(",") if "=" in p)
+    ts = parts.get("t")
+    signature = parts.get("v1")
+    if not ts or not signature:
+        abort(401)
+    if abs(time.time() - int(ts)) > 300:
+        abort(401)
+
+    body = request.get_data()  # raw bytes
+    payload = f"{ts}.".encode() + body
+    expected = hmac.new(SIGNING_SECRET, payload, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        abort(401)
+
+    event = request.get_json()
+    # ... process event["type"], event["body"] ...
+    return "", 200
+```
+
+### Go (net/http)
+
+```go
+package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "io"
+    "net/http"
+    "os"
+    "strconv"
+    "strings"
+    "time"
+)
+
+var signingSecret = []byte(os.Getenv("HARBOR_SIGNING_SECRET"))
+
+func harborWebhook(w http.ResponseWriter, r *http.Request) {
+    sig := r.Header.Get("Harbor-Signature")
+    var ts, signature string
+    for _, p := range strings.Split(sig, ",") {
+        kv := strings.SplitN(p, "=", 2)
+        if len(kv) != 2 { continue }
+        if kv[0] == "t" { ts = kv[1] }
+        if kv[0] == "v1" { signature = kv[1] }
+    }
+    if ts == "" || signature == "" { http.Error(w, "", 401); return }
+
+    tsNum, _ := strconv.ParseInt(ts, 10, 64)
+    if abs(time.Now().Unix() - tsNum) > 300 { http.Error(w, "", 401); return }
+
+    body, _ := io.ReadAll(r.Body)
+    mac := hmac.New(sha256.New, signingSecret)
+    mac.Write([]byte(ts + "."))
+    mac.Write(body)
+    expected := hex.EncodeToString(mac.Sum(nil))
+    expectedB, _ := hex.DecodeString(expected)
+    signatureB, _ := hex.DecodeString(signature)
+    if !hmac.Equal(expectedB, signatureB) { http.Error(w, "", 401); return }
+
+    // ... process body ...
+    w.WriteHeader(200)
+}
+
+func abs(x int64) int64 { if x < 0 { return -x }; return x }
+```

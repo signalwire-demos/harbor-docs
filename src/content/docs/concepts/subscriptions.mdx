@@ -1,0 +1,19 @@
+---
+title: "Subscriptions"
+description: "A mapping from event types to destinations. 'When an event of type X happens, deliver it to destinations A and B.'"
+---
+
+Subscriptions are how you route events. You don't specify the destination when you send an event; instead, subscriptions decide where events go based on their type (e.g., 'order.created', 'user.deleted'). This decouples your event producers from your consumer set — add or remove destinations without touching your application code.
+
+## What to know
+
+- A subscription matches on event_type (exact or wildcard, e.g., 'order.*').
+- One event can fan out to many destinations via multiple matching subscriptions.
+- Subscriptions can be paused independently of their destinations.
+
+## Related
+
+- [Destinations](/concepts/destinations/)
+- [Events](/concepts/events/)
+- [Event types](/concepts/event-types/)
+- [Subscriptions API](/api/subscriptions/)

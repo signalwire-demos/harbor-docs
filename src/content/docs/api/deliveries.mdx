@@ -1,0 +1,80 @@
+---
+title: "Deliveries API"
+description: "Inspect and force-retry deliveries."
+---
+
+Inspect and force-retry deliveries.
+
+See the [Deliveries](/concepts/deliveries/) concept for background.
+
+## List deliveries
+
+`GET /v1/deliveries`
+
+Paginated list. Filter by event, destination, status, and time range.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `event_id` | string | no |  |
+| `destination_id` | string | no |  |
+| `status` | string | no | 'pending', 'retrying', 'succeeded', 'dead'. |
+| `since` | string | no | ISO-8601. Inclusive lower bound. |
+| `until` | string | no | ISO-8601. Exclusive upper bound. |
+| `cursor` | string | no |  |
+
+### Returns
+
+A page of deliveries with status, response codes, and retry counts.
+
+### Example
+
+```bash
+curl -X GET https://api.harbor.example/v1/deliveries \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+## Get a delivery
+
+`GET /v1/deliveries/{id}`
+
+Full detail on one delivery, including the full retry history.
+
+### Returns
+
+The delivery object with a retries[] array.
+
+### Example
+
+```bash
+curl -X GET https://api.harbor.example/v1/deliveries/dest_01HXYZ \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+### Errors
+
+- `delivery_not_found`
+
+## Force a delivery retry
+
+`POST /v1/deliveries/{id}/retry`
+
+Manually retry a delivery, bypassing the normal backoff schedule. Works on dead deliveries too.
+
+### Returns
+
+The delivery object, now in 'retrying' state.
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/deliveries/dest_01HXYZ/retry \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json"
+```
+
+### Errors
+
+- `delivery_not_found`
+- `delivery_too_old`

@@ -1,0 +1,25 @@
+---
+title: "All deliveries to one destination failing at once"
+description: "Troubleshooting: All deliveries to one destination failing at once."
+---
+
+This page covers what "all deliveries to one destination failing at once" usually means and how to recover.
+
+## Symptoms
+
+- DLQ depth suddenly jumps for one destination.
+- Harbor-Signature verification works in test but fails in prod.
+
+## What usually causes it
+
+- Customer's origin returned a maintenance page (5xx HTML) that your receiver treats as 'unknown error'.
+- TLS certificate expired on the customer's destination URL.
+- DNS change routing traffic to a placeholder.
+- Circuit breaker tripped — Harbor auto-paused the destination.
+
+## How to fix
+
+- Check the destination's status in the dashboard. If 'paused', the circuit breaker tripped.
+- Look at the last successful delivery's response body to compare against current failures.
+- Run a manual curl against the destination URL from outside your network.
+- Once the customer confirms their side is healthy, un-pause and use replay-dlq to catch up.

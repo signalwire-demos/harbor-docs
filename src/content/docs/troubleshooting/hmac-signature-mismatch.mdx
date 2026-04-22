@@ -1,0 +1,25 @@
+---
+title: "HMAC signature mismatch"
+description: "Troubleshooting: HMAC signature mismatch."
+---
+
+This page covers what "hmac signature mismatch" usually means and how to recover.
+
+## Symptoms
+
+- Receiver rejects every delivery with 401 or 403.
+- Harbor dashboard shows 'invalid signature' on the destination's response body.
+
+## What usually causes it
+
+- Signing the parsed JSON instead of the raw request body (middleware parsed it for you).
+- Using the wrong signing secret (e.g., copied from a different destination).
+- Signing without the timestamp prefix — the format is `<timestamp>.<body>`, not just `<body>`.
+- Character encoding mismatch — UTF-8 bytes, not string.
+
+## How to fix
+
+- Capture raw body bytes before JSON parsing. In Express, use express.raw(`{type: 'application/json'}`) on the webhook route.
+- Double-check you're reading the destination's signing_secret, not your API key.
+- Include the timestamp: hmac(secret, `${timestamp}.${rawBody}`).
+- Verify constant-time comparison (timingSafeEqual in Node, hmac.compare_digest in Python).

@@ -1,0 +1,42 @@
+---
+title: Install
+description: Get Harbor's CLI and an API key.
+---
+
+Harbor is an API. You interact with it three ways: curl, any HTTP client, or the
+`harbor` CLI (useful for local development and scripting).
+
+## 1. Get an API key
+
+Sign up at [harbor.example](https://harbor.example) and create a project. In the
+project dashboard, create a **live** and a **test** API key. Live keys start with
+`hk_live_`, test keys start with `hk_test_`. Store them in your secret manager —
+there is no way to retrieve a lost key, only to rotate it.
+
+## 2. Install the CLI (optional)
+
+```bash
+npm i -g @harbor/cli
+harbor login
+```
+
+The CLI is not required — it just makes local development less painful by
+tunneling deliveries to your laptop. See [Local testing](/guides/local-testing/).
+
+## 3. Verify
+
+```bash
+curl https://api.harbor.example/v1/destinations \
+  -H "Authorization: Bearer hk_test_your_test_key"
+```
+
+You should get back an empty paginated response:
+
+```json
+{ "data": [], "next_cursor": null }
+```
+
+If you get a `401`, the key is wrong or you forgot the `Bearer` prefix. If you
+get a `403`, the key is for a different project or environment.
+
+Next: send your first webhook in the [Quickstart](/getting-started/quickstart/).

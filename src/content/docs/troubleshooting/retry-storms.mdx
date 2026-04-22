@@ -1,0 +1,22 @@
+---
+title: "Retry storms after an outage"
+description: "Troubleshooting: Retry storms after an outage."
+---
+
+This page covers what "retry storms after an outage" usually means and how to recover.
+
+## Symptoms
+
+- Huge spike in delivery attempts after a customer's endpoint comes back online.
+- Customer complaining they got the same webhook 12 times in a second.
+
+## What usually causes it
+
+- Harbor's default retry schedule is bursty by design — when a destination comes back, all backlogged retries fire within a short window.
+- No jitter configured on a custom retry policy.
+
+## How to fix
+
+- Enable per-destination rate limiting (set max_concurrent_deliveries on the destination).
+- For destinations you know are fragile, configure a longer base delay in the retry policy.
+- Coordinate with the customer: 'expect a burst when you come back online; here's how to smooth it on your side.'

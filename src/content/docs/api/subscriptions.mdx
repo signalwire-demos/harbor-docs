@@ -1,0 +1,90 @@
+---
+title: "Subscriptions API"
+description: "Route events to destinations by type."
+---
+
+Route events to destinations by type.
+
+See the [Subscriptions](/concepts/subscriptions/) concept for background.
+
+## Create a subscription
+
+`POST /v1/subscriptions`
+
+Create a new event-type → destination mapping.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `destination_id` | string | yes |  |
+| `event_type` | string | yes | Exact match or wildcard (e.g., 'order.*' or 'order.**'). |
+| `filter` | object | no | JSONPath-style filter on event body. Optional second gate after event_type. |
+
+### Returns
+
+The subscription object.
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/subscriptions \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "destination_id": "dest_01HXYZ",
+  "event_type": "order.*"
+}'
+```
+
+### Errors
+
+- `destination_not_found`
+- `invalid_event_type_pattern`
+- `invalid_filter`
+
+## List subscriptions
+
+`GET /v1/subscriptions`
+
+Paginated list, optionally filtered by destination.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `destination_id` | string | no |  |
+| `cursor` | string | no |  |
+| `limit` | integer | no |  |
+
+### Returns
+
+A page of subscriptions.
+
+### Example
+
+```bash
+curl -X GET https://api.harbor.example/v1/subscriptions \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+## Delete a subscription
+
+`DELETE /v1/subscriptions/{id}`
+
+Remove a subscription. Future matching events will no longer route to this destination via this subscription.
+
+### Returns
+
+204 No Content.
+
+### Example
+
+```bash
+curl -X DELETE https://api.harbor.example/v1/subscriptions/dest_01HXYZ \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+### Errors
+
+- `subscription_not_found`

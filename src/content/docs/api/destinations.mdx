@@ -1,0 +1,155 @@
+---
+title: "Destinations API"
+description: "Create, list, read, update, delete destinations."
+---
+
+Create, list, read, update, delete destinations.
+
+See the [Destinations](/concepts/destinations/) concept for background.
+
+## Create a destination
+
+`POST /v1/destinations`
+
+Register a new URL that Harbor should deliver events to.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | string | yes | The HTTPS URL Harbor will POST events to. Must be publicly reachable. HTTP is rejected outside test mode. |
+| `name` | string | no | Human-readable label; shown in the dashboard. |
+| `retry_policy` | object | no | Override defaults. See Retry policy. |
+| `metadata` | object | no | Arbitrary key/value pairs. Returned on reads. 8 KB limit. |
+
+### Returns
+
+The created destination object including its signing_secret (shown ONCE; store it).
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/destinations \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "url": "https://api.example.com/webhooks/harbor",
+  "name": "Production receiver",
+  "metadata": {
+    "owner": "payments-team"
+  }
+}'
+```
+
+### Errors
+
+- `invalid_url`
+- `url_not_reachable`
+- `over_destination_limit`
+
+## List destinations
+
+`GET /v1/destinations`
+
+Paginated list of destinations.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cursor` | string | no | Pagination cursor from a previous response. |
+| `limit` | integer | no | Page size, 1-100. Default 25. |
+| `status` | string | no | Filter by 'active' or 'paused'. |
+
+### Returns
+
+A page of destinations plus a next_cursor.
+
+### Example
+
+```bash
+curl -X GET https://api.harbor.example/v1/destinations \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+### Errors
+
+- `invalid_cursor`
+
+## Get a destination
+
+`GET /v1/destinations/{id}`
+
+Retrieve a destination by ID.
+
+### Returns
+
+The destination object. Does NOT include the signing_secret — use the signing-keys API if you need to rotate.
+
+### Example
+
+```bash
+curl -X GET https://api.harbor.example/v1/destinations/dest_01HXYZ \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+### Errors
+
+- `destination_not_found`
+
+## Update a destination
+
+`PATCH /v1/destinations/{id}`
+
+Modify a destination's URL, name, retry policy, or metadata.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | string | no |  |
+| `name` | string | no |  |
+| `retry_policy` | object | no |  |
+| `metadata` | object | no |  |
+| `status` | string | no | 'active' or 'paused'. |
+
+### Returns
+
+The updated destination.
+
+### Example
+
+```bash
+curl -X PATCH https://api.harbor.example/v1/destinations/dest_01HXYZ \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "status": "paused"
+}'
+```
+
+### Errors
+
+- `destination_not_found`
+- `invalid_url`
+
+## Delete a destination
+
+`DELETE /v1/destinations/{id}`
+
+Permanently delete a destination. In-flight deliveries are cancelled.
+
+### Returns
+
+204 No Content.
+
+### Example
+
+```bash
+curl -X DELETE https://api.harbor.example/v1/destinations/dest_01HXYZ \
+  -H "Authorization: Bearer hk_live_your_api_key"
+```
+
+### Errors
+
+- `destination_not_found`

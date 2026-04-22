@@ -1,0 +1,84 @@
+---
+title: "Events API"
+description: "Ingest events and replay past events."
+---
+
+Ingest events and replay past events.
+
+See the [Events](/concepts/events/) concept for background.
+
+## Create an event
+
+`POST /v1/events`
+
+Submit an event. Harbor accepts it, matches subscriptions, and schedules deliveries.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `type` | string | yes | The event type, e.g., 'order.created'. |
+| `body` | object | yes | Arbitrary JSON up to 256 KB. |
+| `idempotency_key` | string | no | 24-hour deduplication window. Recommended for all producers. |
+| `occurred_at` | string | no | ISO-8601 timestamp. Defaults to now. |
+
+### Returns
+
+The event object with its event_id and a list of scheduled deliveries.
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/events \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "type": "order.created",
+  "body": {
+    "order_id": "ord_123",
+    "amount_cents": 4500
+  },
+  "idempotency_key": "ord_123_created"
+}'
+```
+
+### Errors
+
+- `invalid_event_type`
+- `body_too_large`
+- `idempotency_key_conflict`
+
+## Replay an event
+
+`POST /v1/events/{id}/replay`
+
+Re-deliver an existing event to all matching subscriptions (or a subset).
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `destination_ids` | array | no | Replay only to these destinations. Omit to replay to all matching subscriptions. |
+
+### Returns
+
+A list of new deliveries that were scheduled.
+
+### Example
+
+```bash
+curl -X POST https://api.harbor.example/v1/events/dest_01HXYZ/replay \
+  -H "Authorization: Bearer hk_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "destination_ids": [
+    "dest_01HXYZ"
+  ]
+}'
+```
+
+### Errors
+
+- `event_not_found`
+- `event_too_old`
+- `destination_not_subscribed`

@@ -1,0 +1,40 @@
+---
+title: "Errors"
+description: "Enumerate Harbor's error codes with causes and typical fixes."
+---
+
+Enumerate Harbor's error codes with causes and typical fixes.
+
+## Error codes
+
+| Code | Raised by |
+|------|-----------|
+| `body_too_large` | `POST /v1/events` |
+| `delivery_not_found` | `GET /v1/deliveries/{id}`, `POST /v1/deliveries/{id}/retry`, `POST /v1/dlq/{delivery_id}/replay` |
+| `delivery_too_old` | `POST /v1/deliveries/{id}/retry`, `POST /v1/dlq/{delivery_id}/replay` |
+| `destination_not_found` | `GET /v1/destinations/{id}`, `PATCH /v1/destinations/{id}`, `DELETE /v1/destinations/{id}`, `POST /v1/subscriptions`, `POST /v1/destinations/{id}/signing-keys/rotate` |
+| `destination_not_subscribed` | `POST /v1/events/{id}/replay` |
+| `event_not_found` | `POST /v1/events/{id}/replay` |
+| `event_too_old` | `POST /v1/events/{id}/replay` |
+| `idempotency_key_conflict` | `POST /v1/events` |
+| `invalid_cursor` | `GET /v1/destinations` |
+| `invalid_event_type` | `POST /v1/events` |
+| `invalid_event_type_pattern` | `POST /v1/subscriptions` |
+| `invalid_filter` | `POST /v1/subscriptions` |
+| `invalid_url` | `POST /v1/destinations`, `PATCH /v1/destinations/{id}` |
+| `over_destination_limit` | `POST /v1/destinations` |
+| `rotation_in_progress` | `POST /v1/destinations/{id}/signing-keys/rotate` |
+| `subscription_not_found` | `DELETE /v1/subscriptions/{id}` |
+| `url_not_reachable` | `POST /v1/destinations` |
+
+All errors return a JSON body of the shape:
+
+```json
+{
+  "error": {
+    "code": "destination_not_found",
+    "message": "No destination with id dest_01HXYZ",
+    "request_id": "req_01J..."
+  }
+}
+```

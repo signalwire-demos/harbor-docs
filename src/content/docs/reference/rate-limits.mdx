@@ -1,0 +1,17 @@
+---
+title: "Rate limits"
+description: "Document the 1000 events/sec ingest and 60 req/min management limits, and what happens when you hit them."
+---
+
+Document the 1000 events/sec ingest and 60 req/min management limits, and what happens when you hit them.
+
+## Limits
+
+- **Ingest**: 1000 events/second per project.
+- **Management API**: 60 requests/minute per API key.
+
+## What happens when you hit them
+
+- Ingest over-limit: Harbor returns `429 Too Many Requests` with a `Retry-After` header. Back off and retry.
+- Management over-limit: same `429` shape. Typically indicates an automation loop — check your deployment scripts.
+- Bursts are tolerated up to 3x the steady-state limit for 5 seconds.
