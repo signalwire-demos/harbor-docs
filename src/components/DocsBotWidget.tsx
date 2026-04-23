@@ -64,6 +64,13 @@ function extractEvent(params: unknown): DocsBotEvent | null {
 // Starlight slugs are the path with leading/trailing slashes stripped, so
 // /concepts/destinations/ → slug "concepts/destinations". Root is "".
 // ────────────────────────────────────────────────────────────────────────────
+// Module-level mirror of the current pinned-aside (split view) page.
+// Updated by the pin_aside / close_aside event listeners inside
+// DocsBotWidget; read by readPageState() so the widget's /page_state
+// POST carries both primary and aside slugs. Keeps the agent's
+// `current_page_block` in sync with what the reader actually sees.
+let _asideState: { slug: string; title: string } | null = null;
+
 function readPageState() {
   const path = window.location.pathname;
   const slug = path.replace(/^\/+/, "").replace(/\/+$/, "");
@@ -73,6 +80,8 @@ function readPageState() {
     current_page_slug: slug || "index",
     current_page_title: document.title.replace(/ \| Harbor$/, "").replace(/^Harbor$/, "Harbor"),
     current_heading_anchor: heading,
+    current_aside_slug: _asideState?.slug ?? "",
+    current_aside_title: _asideState?.title ?? "",
   };
 }
 
@@ -149,6 +158,11 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   // as X-DocsBot-Token on /page_state + /chat so the agent can verify the call
   // originated from a real widget handshake rather than an arbitrary client.
   const widgetTokenRef = useRef<string>("");
+  // Forward ref to pushPageState, populated after its declaration below.
+  // Needed because the nav/scroll/aside event listener useEffect runs
+  // BEFORE pushPageState is declared in the source order; refs let us
+  // call it from there without a circular-closure hazard.
+  const pushPageStateRef = useRef<() => Promise<void>>();
 
   // ─── call-duration ticker ────────────────────────────────────────────────
   useEffect(() => {
@@ -294,11 +308,41 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
       doScrollAndFlash(el);
     };
 
+    // Pin-to-side / close-aside state mirror — keeps _asideState in sync
+    // with the agent's view of the split view, then triggers a page_state
+    // push so the agent's current_page_block refreshes with both pages.
+    const onPinAside = (e: Event) => {
+      // Don't claim defaultPrevented — DocsBotAside is the primary renderer
+      // and we want to run alongside it, not override it.
+      const detail = (e as CustomEvent).detail as {
+        slug?: string;
+        title?: string;
+      };
+      if (!detail?.slug) return;
+      _asideState = { slug: detail.slug, title: detail.title || detail.slug };
+      // Fire-and-forget; the widget's own pushPageState effect will also
+      // re-POST on the next nav / polling tick, so this is belt + suspenders.
+      void pushPageStateRef.current?.();
+    };
+    const onCloseAside = () => {
+      _asideState = null;
+      void pushPageStateRef.current?.();
+    };
+    window.addEventListener("docsbot:pin_aside", onPinAside);
+    window.addEventListener("docsbot:close_aside", onCloseAside);
+    // When the reader dismisses the aside via the × button or Escape, the
+    // aside component dispatches this event. Treat it the same as a
+    // close_aside command from the agent so the state stays consistent.
+    window.addEventListener("docsbot:aside_closed_by_user", onCloseAside);
+
     window.addEventListener("docsbot:navigate", onNavigate);
     window.addEventListener("docsbot:scroll_to", onScrollTo);
     return () => {
       window.removeEventListener("docsbot:navigate", onNavigate);
       window.removeEventListener("docsbot:scroll_to", onScrollTo);
+      window.removeEventListener("docsbot:pin_aside", onPinAside);
+      window.removeEventListener("docsbot:close_aside", onCloseAside);
+      window.removeEventListener("docsbot:aside_closed_by_user", onCloseAside);
     };
   }, []);
 
@@ -334,6 +378,11 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
       /* non-fatal */
     }
   }, [agentUrl]);
+
+  // Expose pushPageState to the pre-declared event listeners that need it.
+  useEffect(() => {
+    pushPageStateRef.current = pushPageState;
+  }, [pushPageState]);
 
   // Astro view-transition + popstate + polling fallback.
   useEffect(() => {

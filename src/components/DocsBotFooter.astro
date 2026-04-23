@@ -17,6 +17,7 @@
 
 import Default from '@astrojs/starlight/components/Footer.astro';
 import DocsBotWidget from './DocsBotWidget.tsx';
+import DocsBotAside from './DocsBotAside.tsx';
 
 const agentUrl = import.meta.env.PUBLIC_DOCSBOT_AGENT_URL ?? '';
 ---
@@ -29,4 +30,15 @@ const agentUrl = import.meta.env.PUBLIC_DOCSBOT_AGENT_URL ?? '';
   client:load
   transition:persist="docsbot"
   agentUrl={agentUrl}
+/>
+
+<!--
+  Split-view drawer that opens when the agent calls pin_aside. Lives here
+  (not inside the widget) so it can occupy the right edge of the viewport
+  independently of the bubble/card. transition:persist keeps its state
+  across Astro SPA nav — same reason the widget uses it.
+-->
+<DocsBotAside
+  client:load
+  transition:persist="docsbot-aside"
 />
