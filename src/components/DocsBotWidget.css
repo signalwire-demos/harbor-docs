@@ -412,56 +412,24 @@
 }
 
 /* ============================================================
-   SHRUNK CARD — compact video + mic + chat, call stays active
+   SHRUNK CARD — same full widget, uniformly scaled down
    ============================================================
 
-   Intent: "active but out of the way". Shows Quincy's face, mic
-   toggle, one-line chat input. Drops the oscilloscope, transcript
-   area, long invite copy, and oversized header. Width/height are
-   both smaller — aims for ~300px wide by ~260px tall. Full card
-   ↔ shrunk preserves the call; only minimize-to-bubble hangs up.
+   Intent: one card layout, two sizes. Shrunk is a CSS transform
+   scale on the full card, so every element (video, controls,
+   transcript) shrinks in proportion. Transform-origin pins to
+   the bottom-right corner so the widget collapses toward the
+   screen corner — no mid-screen jumping when toggling.
+
+   The bounding box still takes full-size space in layout; the
+   visible card is scaled. Since the widget is position:fixed in
+   a corner that doesn't affect page flow, that's fine.
 */
 
 .docsbot-card--shrunk {
-  width: 300px;
-  max-width: calc(100vw - 2rem);
-}
-
-.docsbot-header--shrunk {
-  padding: 8px 10px;
-  align-items: center;
-  justify-content: space-between;
-}
-.docsbot-header--shrunk .docsbot-subtitle {
-  margin: 0;
-  font-size: 0.72rem;
-}
-.docsbot-duration-inline {
-  font-family: var(--harbor-font-mono);
-  font-size: 0.72rem;
-  color: color-mix(in srgb, var(--harbor-amber-400) 80%, var(--sl-color-gray-3));
-  letter-spacing: 0.05em;
-}
-
-.docsbot-stage--shrunk {
-  aspect-ratio: 16 / 10;
-  max-height: 170px;
-}
-
-/* Shrunk-mode start-call CTA — same visual language as primary buttons
-   but padded down a touch to match the tighter shell. */
-.docsbot-shrunk-cta {
-  margin: 0 10px 10px;
-}
-
-/* Compact controls row in shrunk state — mute + end call only. */
-.docsbot-controls--shrunk {
-  padding: 0 10px 10px;
-  gap: 0.4rem;
-}
-.docsbot-controls--shrunk > button {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.8rem;
+  transform: scale(0.62);
+  transform-origin: bottom right;
+  transition: transform 220ms ease;
 }
 
 /* ============================================================

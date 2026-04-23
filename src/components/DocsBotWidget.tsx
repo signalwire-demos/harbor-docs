@@ -704,80 +704,16 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
     </div>
   );
 
-  if (size === "shrunk") {
-    return (
-      <div className="docsbot-root">
-        <div
-          className="docsbot-card docsbot-card--shrunk"
-          role="dialog"
-          aria-label="Harbor docs voice assistant (compact)"
-        >
-          <div className="docsbot-header docsbot-header--shrunk">
-            <p className="docsbot-subtitle">
-              Quincy
-              {status === "connected" && (
-                <span className="docsbot-duration-inline"> · {durationLabel}</span>
-              )}
-            </p>
-            {windowControls}
-          </div>
-
-          <div className="docsbot-stage docsbot-stage--shrunk">
-            {status === "idle" && (
-              <video
-                className="docsbot-quincy-vid"
-                src="/quincy-idle.mp4"
-                autoPlay loop muted playsInline
-                poster="/quincy-portrait.jpg"
-                aria-hidden="true"
-              />
-            )}
-            <div className="docsbot-video" ref={videoContainerRef} />
-            {status === "connecting" && (
-              <div className="docsbot-video-placeholder connecting">Connecting…</div>
-            )}
-            {status === "error" && (
-              <div className="docsbot-video-placeholder error">{errorMsg || "Connection error"}</div>
-            )}
-          </div>
-
-          {status === "idle" && (
-            <button className="primary docsbot-shrunk-cta" onClick={() => void connect()}>
-              Start call
-            </button>
-          )}
-
-          {status === "connected" && (
-            <>
-              <div className="docsbot-chat">
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Type your question"
-                  onKeyDown={(e) => { if (e.key === "Enter") void sendChat(); }}
-                  disabled={chatSending}
-                  aria-label="Chat message"
-                />
-                <button onClick={() => void sendChat()} disabled={!chatInput.trim() || chatSending}>
-                  Send
-                </button>
-              </div>
-              <div className="docsbot-controls docsbot-controls--shrunk">
-                <button className={muted ? "muted" : ""} onClick={toggleMute}>
-                  {muted ? "Unmute" : "Mute"}
-                </button>
-                <button className="danger" onClick={() => void hangup()}>End call</button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
+  // Shrunk renders the EXACT SAME JSX as full, just with a --shrunk
+  // modifier class on the card. CSS applies a transform: scale() so
+  // video, controls, transcript all shrink together in proportion —
+  // user feedback was that per-size layouts looked off (video stayed
+  // full size, covered half the widget). Same layout, smaller scale.
+  const cardClass = `docsbot-card${size === "shrunk" ? " docsbot-card--shrunk" : ""}`;
 
   return (
     <div className="docsbot-root">
-      <div className="docsbot-card" role="dialog" aria-label="Harbor docs voice assistant">
+      <div className={cardClass} role="dialog" aria-label="Harbor docs voice assistant">
         <div className="docsbot-header">
           <div>
             <p className="docsbot-subtitle">Quincy · Staff engineer</p>
