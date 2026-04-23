@@ -289,18 +289,25 @@
 .docsbot-card {
   width: 380px;
   max-width: calc(100vw - 2rem);
-  background: var(--harbor-ink-900, #05101c);
-  /* Faint chart grid behind all panels */
-  background-image:
-    linear-gradient(to right,  rgba(138, 167, 193, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(138, 167, 193, 0.045) 1px, transparent 1px);
-  background-size: 24px 24px;
+
+  /* A floating surface, not a slot in the page. Soft top-to-bottom lift
+     so the card reads as "lit from above" material, with a subtle inner
+     amber lip along the top edge and a deep shadow below.  The page's
+     own chart-grid lives on <body>; repeating it here made the widget
+     look carved INTO the page instead of floating above it. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--harbor-ink-700) 60%, var(--harbor-ink-900)) 0%,
+    var(--harbor-ink-900) 55%,
+    color-mix(in srgb, var(--harbor-ink-900) 92%, #000) 100%
+  );
 
   border: 1px solid color-mix(in srgb, var(--harbor-amber-500) 35%, var(--sl-color-hairline));
   border-radius: 4px;
   box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--harbor-amber-400) 14%, transparent),
     0 0 0 1px color-mix(in srgb, var(--harbor-amber-500) 22%, transparent),
-    0 30px 70px -20px rgba(0, 0, 0, 0.65),
+    0 30px 70px -20px rgba(0, 0, 0, 0.7),
     0 0 50px -10px rgba(245, 181, 68, 0.18);
   overflow: hidden;
   display: flex;
@@ -309,11 +316,16 @@
 }
 
 [data-theme='light'] .docsbot-card {
-  background: var(--harbor-paper-50);
-  background-image:
-    linear-gradient(to right,  rgba(142, 124, 90, 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(142, 124, 90, 0.08) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background: linear-gradient(
+    180deg,
+    var(--harbor-paper-50) 0%,
+    color-mix(in srgb, var(--harbor-paper-100) 40%, var(--harbor-paper-50)) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--harbor-amber-400) 20%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--harbor-amber-500) 28%, transparent),
+    0 30px 70px -20px rgba(69, 45, 12, 0.28),
+    0 0 50px -10px rgba(245, 181, 68, 0.22);
 }
 
 /* Amber corner brackets — signature of Harbor cards */
@@ -497,22 +509,41 @@
    ============================================================ */
 
 .docsbot-coach {
-  background: var(--harbor-ink-900, #05101c);
-  background-image:
-    linear-gradient(to right,  rgba(138, 167, 193, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(138, 167, 193, 0.045) 1px, transparent 1px);
-  background-size: 24px 24px;
+  /* Same floating-surface treatment as the main card — gradient lift +
+     amber top-lip, no chart grid (that belongs on the page body, not on
+     overlays). Keeps both panels reading as siblings of the same
+     instrument, not patches of the page. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--harbor-ink-700) 60%, var(--harbor-ink-900)) 0%,
+    var(--harbor-ink-900) 55%,
+    color-mix(in srgb, var(--harbor-ink-900) 92%, #000) 100%
+  );
   border: 1px solid color-mix(in srgb, var(--harbor-amber-500) 35%, var(--sl-color-hairline));
   border-radius: 4px;
   box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--harbor-amber-400) 14%, transparent),
     0 0 0 1px color-mix(in srgb, var(--harbor-amber-500) 22%, transparent),
-    0 20px 50px -18px rgba(0, 0, 0, 0.6);
+    0 20px 50px -18px rgba(0, 0, 0, 0.65);
   max-height: 50vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: docsbot-coach-slide-in 220ms ease-out both;
   color: var(--sl-color-white);
+}
+
+[data-theme='light'] .docsbot-coach {
+  background: linear-gradient(
+    180deg,
+    var(--harbor-paper-50) 0%,
+    color-mix(in srgb, var(--harbor-paper-100) 40%, var(--harbor-paper-50)) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--harbor-amber-400) 20%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--harbor-amber-500) 28%, transparent),
+    0 20px 50px -18px rgba(69, 45, 12, 0.25);
+  color: var(--harbor-paper-500);
 }
 @keyframes docsbot-coach-slide-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -748,18 +779,9 @@
     );
 }
 
-/* Tiny "chart grid" on top of the portrait for the engineering-manual feel */
-.docsbot-stage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right,  rgba(138, 167, 193, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(138, 167, 193, 0.04) 1px, transparent 1px);
-  background-size: 18px 18px;
-  pointer-events: none;
-  z-index: 2;
-}
+/* (Removed the chart-grid overlay that used to sit on the portrait.
+ * The vignette ::after already does the "framed instrument well" job;
+ * a grid on top of Quincy's face was noise, not texture.) */
 
 /* SDK-managed container — sits above the fallback clip so the SDK's
    injected <video> element (if any) takes visual priority. */
