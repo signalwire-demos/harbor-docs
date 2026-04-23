@@ -438,7 +438,11 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
         throw new Error("agent returned no token/address");
       }
       widgetTokenRef.current = tokenData.widget_token ?? "";
-      callIdRef.current = tokenData.call_id ?? crypto.randomUUID();
+      // Real call_id gets filled in by the SDK's `call.joined` event below.
+      // Any value here is a placeholder that SignalWire won't recognize —
+      // sending it to calling.ai_message returns 404. Do NOT use the
+      // widget-UUID from /get_token as an actual call_id.
+      callIdRef.current = "";
 
       // 2) Load SDK (it's already on window from <script src="/signalwire.js">).
       const SW = window.SignalWire;
@@ -473,6 +477,21 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
       roomRef.current = room;
 
       room.on("user_event", handleUserEvent);
+
+      // call.joined fires once SignalWire establishes the call and hands
+      // us the REAL call_id. Everything that targets calling.ai_message
+      // (text chat, live page_state push) depends on this — without it,
+      // every REST call to calling.ai_message 404s because the UUID the
+      // widget made up isn't a real call in SW's tracking.
+      room.on("call.joined", (params: unknown) => {
+        const p = params as { call_id?: string };
+        if (p?.call_id) callIdRef.current = p.call_id;
+        setStatus("connected");
+        setCallStart(Date.now());
+        // Push initial page state now that we have a real call_id.
+        void pushPageState();
+      });
+
       const onEnded = () => handleDisconnect();
       room.on("room.left", onEnded);
       room.on("destroy", onEnded);
@@ -480,10 +499,8 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
       room.on("session.ended", onEnded);
 
       await room.start();
-      setStatus("connected");
-      setCallStart(Date.now());
-      // Push initial state immediately so the agent has page context on turn 1.
-      void pushPageState();
+      // setStatus("connected") and pushPageState happen inside call.joined
+      // — not here — so the state reflects the real call_id, not a stub.
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("[docsbot] connect failed:", err);
@@ -493,21 +510,18 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
     }
   }, [agentUrl, handleUserEvent, pushPageState]);
 
+  // Pure local cleanup — no SDK hangup here. Called from the room-ended
+  // event listeners (after the SDK has already ended the call) and from
+  // hangup() below (after we've awaited the SDK's hangup promise).
+  // Matches Prompt Pantry's split between handleDisconnect (cleanup) and
+  // hangup (SDK shutdown).
   const handleDisconnect = useCallback(() => {
-    try {
-      roomRef.current?.hangup?.();
-    } catch { /* swallow */ }
-    try {
-      clientRef.current?.disconnect?.();
-    } catch { /* swallow */ }
-    roomRef.current = null;
-    clientRef.current = null;
+    setStatus("idle");
+    setCallStart(null);
+    setMuted(false);
     callIdRef.current = "";
     widgetTokenRef.current = "";
-    setCallStart(null);
-    setStatus("idle");
 
-    // Stop tracks + clear video DOM.
     if (videoContainerRef.current) {
       videoContainerRef.current.querySelectorAll("video").forEach((v) => {
         const s = v.srcObject as MediaStream | null;
@@ -516,7 +530,28 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
       });
       videoContainerRef.current.innerHTML = "";
     }
+
+    roomRef.current = null;
+    if (clientRef.current) {
+      try { void clientRef.current.disconnect(); } catch { /* ignore */ }
+      clientRef.current = null;
+    }
   }, []);
+
+  // End-call button path — MUST await the SDK's hangup before local cleanup,
+  // or the SDK never finishes tearing down the WebRTC session and the end-
+  // call button appears to do nothing. The fire-and-forget `roomRef.current
+  // ?.hangup?.()` inside handleDisconnect was the bug.
+  const hangup = useCallback(async () => {
+    if (roomRef.current) {
+      try {
+        await roomRef.current.hangup();
+      } catch {
+        /* ignore — room may already be gone */
+      }
+    }
+    handleDisconnect();
+  }, [handleDisconnect]);
 
   // ─── Mute toggle ──────────────────────────────────────────────────────────
   const toggleMute = useCallback(() => {
@@ -606,7 +641,7 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
             className="docsbot-close"
             aria-label="Close"
             onClick={() => {
-              if (status === "connected" || status === "connecting") handleDisconnect();
+              if (status === "connected" || status === "connecting") void hangup();
               setExpanded(false);
             }}
           >
@@ -699,7 +734,7 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
               <button className={muted ? "muted" : ""} onClick={toggleMute}>
                 {muted ? "Unmute" : "Mute"}
               </button>
-              <button className="danger" onClick={handleDisconnect}>End call</button>
+              <button className="danger" onClick={() => void hangup()}>End call</button>
             </>
           )}
           {status === "error" && (
