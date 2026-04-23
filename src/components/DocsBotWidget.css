@@ -412,6 +412,102 @@
 }
 
 /* ============================================================
+   SHRUNK CARD — compact video + mic + chat, call stays active
+   ============================================================
+
+   Intent: "active but out of the way". Shows Quincy's face, mic
+   toggle, one-line chat input. Drops the oscilloscope, transcript
+   area, long invite copy, and oversized header. Width/height are
+   both smaller — aims for ~300px wide by ~260px tall. Full card
+   ↔ shrunk preserves the call; only minimize-to-bubble hangs up.
+*/
+
+.docsbot-card--shrunk {
+  width: 300px;
+  max-width: calc(100vw - 2rem);
+}
+
+.docsbot-header--shrunk {
+  padding: 8px 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.docsbot-header--shrunk .docsbot-subtitle {
+  margin: 0;
+  font-size: 0.72rem;
+}
+.docsbot-duration-inline {
+  font-family: var(--harbor-font-mono);
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--harbor-amber-400) 80%, var(--sl-color-gray-3));
+  letter-spacing: 0.05em;
+}
+
+.docsbot-stage--shrunk {
+  aspect-ratio: 16 / 10;
+  max-height: 170px;
+}
+
+/* Shrunk-mode start-call CTA — same visual language as primary buttons
+   but padded down a touch to match the tighter shell. */
+.docsbot-shrunk-cta {
+  margin: 0 10px 10px;
+}
+
+/* Compact controls row in shrunk state — mute + end call only. */
+.docsbot-controls--shrunk {
+  padding: 0 10px 10px;
+  gap: 0.4rem;
+}
+.docsbot-controls--shrunk > button {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* ============================================================
+   WINDOW CONTROLS — shrink toggle + minimize (end call)
+   ============================================================ */
+
+.docsbot-wincontrols {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.docsbot-wincontrols__btn {
+  background: transparent;
+  border: 1px solid var(--sl-color-hairline);
+  color: var(--sl-color-gray-3);
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  font-family: var(--harbor-font-mono);
+  font-size: 0.8rem;
+  border-radius: 2px;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+.docsbot-wincontrols__btn:hover {
+  color: var(--harbor-amber-400);
+  border-color: var(--harbor-amber-500);
+  background: color-mix(in srgb, var(--harbor-amber-500) 12%, transparent);
+}
+.docsbot-wincontrols__btn:focus-visible {
+  outline: 2px solid var(--harbor-amber-500);
+  outline-offset: 1px;
+}
+.docsbot-wincontrols__btn--close:hover {
+  color: #ff9b7a;
+  border-color: #ff9b7a;
+  background: color-mix(in srgb, #ff9b7a 14%, transparent);
+}
+
+/* ============================================================
    OSCILLOSCOPE WAVEFORM — lives above the video during call
    ============================================================ */
 

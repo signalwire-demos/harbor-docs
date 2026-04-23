@@ -125,7 +125,22 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [status, setStatus] = useState<Status>("idle");
-  const [expanded, setExpanded] = useState(false);
+  // Three-size state: "bubble" (minimized to the porthole), "shrunk" (compact
+  // card that still shows Quincy + mic + compact chat input while keeping
+  // the call active), "full" (large card with transcript area + controls).
+  // Full↔Shrunk does NOT end the call. Bubble ends the call.
+  type Size = "bubble" | "shrunk" | "full";
+  const SIZE_PREF_KEY = "docsbot_preferred_size";
+  const [size, setSize] = useState<Size>("bubble");
+  // Remember which non-bubble size the reader prefers so click-to-restore
+  // from the bubble returns them to that size on the next call.
+  const preferredSizeRef = useRef<Exclude<Size, "bubble">>(
+    (typeof window !== "undefined"
+      ? (window.localStorage.getItem(SIZE_PREF_KEY) as
+          | Exclude<Size, "bubble">
+          | null)
+      : null) ?? "full",
+  );
   const [muted, setMuted] = useState(false);
   const [callStart, setCallStart] = useState<number | null>(null);
   const [, forceTick] = useState(0);
@@ -587,7 +602,24 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   }, [agentUrl, chatInput, chatSending]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
-  if (!expanded) {
+
+  // Helpers for the top-right controls (shared between shrunk and full).
+  const remember = (nextSize: Exclude<Size, "bubble">) => {
+    preferredSizeRef.current = nextSize;
+    try { window.localStorage.setItem(SIZE_PREF_KEY, nextSize); }
+    catch { /* non-fatal */ }
+  };
+  const goShrunk = () => { remember("shrunk"); setSize("shrunk"); };
+  const goFull = () => { remember("full"); setSize("full"); };
+  const goBubble = () => {
+    // Minimize to bubble. If a call is live, END it — bubble is the
+    // "not actively talking" state. Shrunk keeps the call alive for
+    // "active but out of the way" use.
+    if (status === "connected" || status === "connecting") void hangup();
+    setSize("bubble");
+  };
+
+  if (size === "bubble") {
     const attract = !attractDismissed;
     return (
       <div className={`docsbot-root${attract ? " attract" : ""}`}>
@@ -607,7 +639,9 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
           aria-label="Open Quincy — Harbor's docs assistant"
           onClick={() => {
             dismissAttract();
-            setExpanded(true);
+            // Restore to the reader's preferred non-bubble size (full on
+            // first click of a fresh visit; whatever they last used after).
+            setSize(preferredSizeRef.current);
           }}
         >
           {/* Fallback mic icon — hidden via CSS when data-quincy is set,
@@ -629,6 +663,118 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
     status === "error" ? "docsbot-dot error" :
     "docsbot-dot";
 
+  // Window controls (shrink + minimize) — shared across full / shrunk.
+  // Shrink toggle switches between full and shrunk without ending the call.
+  // Minimize ends the call and returns to the bubble state.
+  const windowControls = (
+    <div className="docsbot-wincontrols" aria-label="Widget controls">
+      {size === "full" ? (
+        <button
+          className="docsbot-wincontrols__btn"
+          aria-label="Shrink to compact"
+          title="Shrink to compact"
+          onClick={goShrunk}
+        >
+          {/* Down-caret-into-box glyph for shrink */}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 14h8v6H8zM8 10l4-5 4 5" />
+          </svg>
+        </button>
+      ) : (
+        <button
+          className="docsbot-wincontrols__btn"
+          aria-label="Expand to full"
+          title="Expand to full"
+          onClick={goFull}
+        >
+          {/* Up-arrow-out-of-box glyph for expand */}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 14H4v6h16v-6h-4M12 4v11M8 8l4-4 4 4" />
+          </svg>
+        </button>
+      )}
+      <button
+        className="docsbot-wincontrols__btn docsbot-wincontrols__btn--close"
+        aria-label="Minimize and end call"
+        title="Minimize (ends the call)"
+        onClick={goBubble}
+      >
+        ✕
+      </button>
+    </div>
+  );
+
+  if (size === "shrunk") {
+    return (
+      <div className="docsbot-root">
+        <div
+          className="docsbot-card docsbot-card--shrunk"
+          role="dialog"
+          aria-label="Harbor docs voice assistant (compact)"
+        >
+          <div className="docsbot-header docsbot-header--shrunk">
+            <p className="docsbot-subtitle">
+              Quincy
+              {status === "connected" && (
+                <span className="docsbot-duration-inline"> · {durationLabel}</span>
+              )}
+            </p>
+            {windowControls}
+          </div>
+
+          <div className="docsbot-stage docsbot-stage--shrunk">
+            {status === "idle" && (
+              <video
+                className="docsbot-quincy-vid"
+                src="/quincy-idle.mp4"
+                autoPlay loop muted playsInline
+                poster="/quincy-portrait.jpg"
+                aria-hidden="true"
+              />
+            )}
+            <div className="docsbot-video" ref={videoContainerRef} />
+            {status === "connecting" && (
+              <div className="docsbot-video-placeholder connecting">Connecting…</div>
+            )}
+            {status === "error" && (
+              <div className="docsbot-video-placeholder error">{errorMsg || "Connection error"}</div>
+            )}
+          </div>
+
+          {status === "idle" && (
+            <button className="primary docsbot-shrunk-cta" onClick={() => void connect()}>
+              Start call
+            </button>
+          )}
+
+          {status === "connected" && (
+            <>
+              <div className="docsbot-chat">
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type your question"
+                  onKeyDown={(e) => { if (e.key === "Enter") void sendChat(); }}
+                  disabled={chatSending}
+                  aria-label="Chat message"
+                />
+                <button onClick={() => void sendChat()} disabled={!chatInput.trim() || chatSending}>
+                  Send
+                </button>
+              </div>
+              <div className="docsbot-controls docsbot-controls--shrunk">
+                <button className={muted ? "muted" : ""} onClick={toggleMute}>
+                  {muted ? "Unmute" : "Mute"}
+                </button>
+                <button className="danger" onClick={() => void hangup()}>End call</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="docsbot-root">
       <div className="docsbot-card" role="dialog" aria-label="Harbor docs voice assistant">
@@ -637,16 +783,7 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
             <p className="docsbot-subtitle">Quincy · Staff engineer</p>
             <h3>Ask a question.</h3>
           </div>
-          <button
-            className="docsbot-close"
-            aria-label="Close"
-            onClick={() => {
-              if (status === "connected" || status === "connecting") void hangup();
-              setExpanded(false);
-            }}
-          >
-            ✕
-          </button>
+          {windowControls}
         </div>
 
         {status === "connected" && (
