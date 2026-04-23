@@ -23,14 +23,20 @@
   right: 0;
   bottom: 0;
   width: var(--docsbot-aside-width);
-  background: var(--harbor-paper-50, var(--sl-color-bg, #fff));
+  /* Follow Starlight's theme-aware vars so the drawer matches whichever
+     mode the site is in. Hardcoded --harbor-paper-50 (a light paper color)
+     made the drawer unreadable when the site was in dark mode: the
+     injected .sl-markdown-content uses light text, which went invisible
+     on a light container. --sl-color-bg flips with the theme; --sl-color-text
+     does the same for color. */
+  background: var(--sl-color-bg, var(--harbor-ink-900, #05101c));
   border-left: 1px solid color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 45%, transparent);
   box-shadow: -24px 0 60px -28px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   z-index: 2147483640; /* below the widget bubble (2147483647), above content */
   animation: docsbot-aside-in var(--docsbot-aside-anim) both;
-  color: var(--sl-color-text, var(--harbor-ink-900, #0e1a2b));
+  color: var(--sl-color-text, var(--sl-color-white));
   font-family: var(--harbor-font-sans, var(--sl-font, system-ui));
 }
 

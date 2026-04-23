@@ -151,13 +151,20 @@ export default function DocsBotAside() {
           type="button"
           className="docsbot-aside__close"
           aria-label="Close aside"
-          onClick={() => {
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             // Signal "user closed this" so the widget can relay to the agent.
-            window.dispatchEvent(
-              new CustomEvent("docsbot:aside_closed_by_user", {
-                cancelable: true,
-              }),
-            );
+            try {
+              window.dispatchEvent(
+                new CustomEvent("docsbot:aside_closed_by_user", {
+                  cancelable: true,
+                }),
+              );
+            } catch {
+              /* non-fatal — close anyway */
+            }
             close();
           }}
         >
