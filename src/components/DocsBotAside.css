@@ -10,6 +10,11 @@
    Width: min(50vw, 640px). On narrow screens (<900px) it goes full
    bleed and the main pane hides under it — cleaner than a two-column
    squeeze on phones.
+
+   Theming: all chrome resolves against Starlight's theme vars
+   (--sl-color-text, --sl-color-bg) or amber tokens picked per-theme.
+   Nothing points at raw ink / paper tokens anymore, so the drawer
+   flips cleanly with the rest of the site.
 */
 
 :root {
@@ -23,15 +28,13 @@
   right: 0;
   bottom: 0;
   width: var(--docsbot-aside-width);
-  /* Follow Starlight's theme-aware vars so the drawer matches whichever
-     mode the site is in. Hardcoded --harbor-paper-50 (a light paper color)
-     made the drawer unreadable when the site was in dark mode: the
-     injected .sl-markdown-content uses light text, which went invisible
-     on a light container. --sl-color-bg flips with the theme; --sl-color-text
-     does the same for color. */
+  /* Theme-aware surface — flips with Starlight. */
   background: var(--sl-color-bg, var(--harbor-ink-900, #05101c));
-  border-left: 1px solid color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 45%, transparent);
-  box-shadow: -24px 0 60px -28px rgba(0, 0, 0, 0.35);
+  border-left: 1px solid
+    color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 45%, transparent);
+  box-shadow:
+    -24px 0 60px -28px rgba(0, 0, 0, 0.55),
+    -1px 0 0 color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 18%, transparent);
   display: flex;
   flex-direction: column;
   z-index: 2147483640; /* below the widget bubble (2147483647), above content */
@@ -60,63 +63,116 @@
   gap: 1rem;
   padding: 1rem 1.1rem 0.9rem;
   border-bottom: 1px solid
-    color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 30%, transparent);
+    color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 30%, transparent);
+  /* Subtle warm wash at the top — strengthened enough to read on dark. */
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--harbor-amber-400, #e9b75c) 18%, transparent) 0%,
+    color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 10%, transparent) 0%,
+    transparent 100%
+  );
+  animation: docsbot-aside-chrome-in 420ms 80ms ease-out both;
+}
+
+[data-theme='light'] .docsbot-aside__header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 16%, transparent) 0%,
     transparent 100%
   );
 }
 
+@keyframes docsbot-aside-chrome-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Eyebrow: amber. Dark mode uses amber-500 for pop; light mode flips
+   to amber-600 (the darker pressed amber) so it reads cleanly on paper. */
 .docsbot-aside__eyebrow {
   font-family: var(--harbor-font-mono, ui-monospace, monospace);
   font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
+  font-weight: 500;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--harbor-amber-700, #8b5a15);
-  margin-bottom: 0.2rem;
+  color: var(--harbor-amber-500, #e89a1f);
+  margin-bottom: 0.25rem;
+}
+[data-theme='light'] .docsbot-aside__eyebrow {
+  color: var(--harbor-amber-600, #b7770e);
 }
 
+/* Title: Fraunces, tied to Starlight's foreground color so it flips
+   automatically. Previously hardcoded ink-900 (dark navy), which went
+   invisible against the ink-navy drawer on dark mode. */
 .docsbot-aside__title {
-  font-family: var(--harbor-font-serif, "Fraunces", serif);
-  font-size: 1.2rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--harbor-ink-900, #0e1a2b);
+  font-family: var(--harbor-font-display, "Fraunces", serif);
+  font-variation-settings: 'opsz' 36, 'SOFT' 50, 'WONK' 0;
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--sl-color-white, var(--sl-color-text));
 }
 
+/* Path: the same text color at reduced opacity — always readable,
+   never competes with the title. */
 .docsbot-aside__path {
-  margin-top: 0.15rem;
+  margin-top: 0.25rem;
   font-family: var(--harbor-font-mono, ui-monospace, monospace);
   font-size: 0.72rem;
-  color: color-mix(in srgb, var(--harbor-ink-900, #0e1a2b) 60%, transparent);
+  letter-spacing: 0.03em;
+  color: color-mix(
+    in srgb,
+    var(--sl-color-text, var(--sl-color-white)) 62%,
+    transparent
+  );
 }
 
+/* Close button: 36×36 hit target, amber in both themes but brighter
+   in dark to match the widget's own × treatment. Adds a subtle fill
+   on hover so it reads as clickable. */
 .docsbot-aside__close {
   border: 1px solid
-    color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 55%, transparent);
+    color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 55%, transparent);
   background: transparent;
-  color: var(--harbor-amber-700, #8b5a15);
-  width: 32px;
-  height: 32px;
+  color: var(--harbor-amber-400, #f5b544);
+  width: 36px;
+  height: 36px;
   border-radius: 2px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.05rem;
   line-height: 1;
   flex-shrink: 0;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 160ms ease;
 }
+[data-theme='light'] .docsbot-aside__close {
+  color: var(--harbor-amber-600, #b7770e);
+  border-color: color-mix(in srgb, var(--harbor-amber-600, #b7770e) 55%, transparent);
+}
+
 .docsbot-aside__close:hover {
-  background: color-mix(in srgb, var(--harbor-amber-400, #e9b75c) 25%, transparent);
-  color: var(--harbor-ink-900, #0e1a2b);
-  border-color: var(--harbor-amber-600, #c58c2b);
+  background: color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 14%, transparent);
+  border-color: var(--harbor-amber-500, #e89a1f);
+  color: var(--harbor-amber-400, #f5b544);
+  box-shadow:
+    0 0 0 1px var(--harbor-amber-500, #e89a1f),
+    0 0 20px -4px rgba(245, 181, 68, 0.45);
 }
+[data-theme='light'] .docsbot-aside__close:hover {
+  background: color-mix(in srgb, var(--harbor-amber-500, #e89a1f) 18%, transparent);
+  border-color: var(--harbor-amber-600, #b7770e);
+  color: var(--harbor-amber-600, #b7770e);
+}
+
 .docsbot-aside__close:focus-visible {
-  outline: 2px solid var(--harbor-amber-500, #d99d3a);
+  outline: 2px solid var(--harbor-amber-500, #e89a1f);
   outline-offset: 2px;
 }
 
@@ -137,7 +193,7 @@
 .docsbot-aside__content h1,
 .docsbot-aside__content h2,
 .docsbot-aside__content h3 {
-  font-family: var(--harbor-font-serif, "Fraunces", serif);
+  font-family: var(--harbor-font-display, "Fraunces", serif);
 }
 .docsbot-aside__content h1 { font-size: 1.4rem; margin-top: 0; }
 .docsbot-aside__content h2 { font-size: 1.18rem; margin-top: 1.6rem; }
@@ -157,10 +213,15 @@
   font-size: 0.85em;
 }
 
+/* Loading / error messages — theme-aware muted foreground. */
 .docsbot-aside__placeholder,
 .docsbot-aside__error {
   padding: 1.2rem 0;
-  color: color-mix(in srgb, var(--harbor-ink-900, #0e1a2b) 60%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--sl-color-text, var(--sl-color-white)) 55%,
+    transparent
+  );
   font-style: italic;
 }
 .docsbot-aside__error small {
@@ -169,7 +230,11 @@
   font-family: var(--harbor-font-mono, ui-monospace, monospace);
   font-style: normal;
   font-size: 0.75rem;
-  color: color-mix(in srgb, var(--harbor-ink-900, #0e1a2b) 45%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--sl-color-text, var(--sl-color-white)) 40%,
+    transparent
+  );
 }
 
 /* ============================================================
