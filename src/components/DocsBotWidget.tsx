@@ -124,6 +124,21 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   const [chatSending, setChatSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
+  // Attract-state: a larger bubble + speech-bubble callout on first visit
+  // to make the voice demo obvious. Dismissed on first bubble click (and
+  // persisted in localStorage so returning visitors don't get re-nagged).
+  const ATTRACT_KEY = "docsbot_attract_dismissed";
+  const [attractDismissed, setAttractDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true; // SSR: don't render attract
+    try { return window.localStorage.getItem(ATTRACT_KEY) === "1"; }
+    catch { return false; }
+  });
+  const dismissAttract = useCallback(() => {
+    try { window.localStorage.setItem(ATTRACT_KEY, "1"); }
+    catch { /* non-fatal */ }
+    setAttractDismissed(true);
+  }, []);
+
   // ─── SDK refs ────────────────────────────────────────────────────────────
   const clientRef = useRef<SWClient | null>(null);
   const roomRef = useRef<RoomSession | null>(null);
@@ -489,13 +504,27 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   if (!expanded) {
+    const attract = !attractDismissed;
     return (
-      <div className="docsbot-root">
+      <div className={`docsbot-root${attract ? " attract" : ""}`}>
+        {attract && (
+          <div className="docsbot-callout" role="status" aria-live="polite">
+            <div className="docsbot-callout__eyebrow">Voice demo</div>
+            <div className="docsbot-callout__headline">Ask Quincy anything about Harbor</div>
+            <div className="docsbot-callout__hint">
+              Try: <em>“How do I verify a webhook signature?”</em>
+            </div>
+            <span className="docsbot-callout__arrow" aria-hidden="true" />
+          </div>
+        )}
         <button
           className="docsbot-bubble"
           data-quincy="1"
           aria-label="Open Quincy — Harbor's docs assistant"
-          onClick={() => setExpanded(true)}
+          onClick={() => {
+            dismissAttract();
+            setExpanded(true);
+          }}
         >
           {/* Fallback mic icon — hidden via CSS when data-quincy is set,
               but kept for a11y + older browsers without the portrait asset. */}
