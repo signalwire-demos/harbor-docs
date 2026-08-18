@@ -467,6 +467,102 @@
   flex-shrink: 0;
 }
 
+/* Containing block for the demo-prompts hint. Wraps only the bulb so the
+   hint's arrow lines up with the bulb rather than the bar's right edge. */
+.docsbot-hintanchor {
+  position: relative;
+  display: inline-flex;
+}
+
+/* ── One-time demo-prompts nudge ─────────────────────────────────────────
+   Points up at the lightbulb button. Same paper-on-ink treatment as the
+   attract callout by the bubble, so the two nudges read as one voice.
+   Kept out of the controls' flex flow (absolute) so adding it never
+   reflows the button row. */
+.docsbot-coachhint {
+  position: absolute;
+  top: calc(100% + 9px);
+  /* Flush with the bulb's right edge (see .docsbot-hintanchor). */
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: max-content;
+  max-width: 210px;
+  padding: 0.4rem 0.5rem 0.4rem 0.6rem;
+  background: var(--harbor-paper-50, #f6efe1);
+  color: var(--harbor-ink-900, #0e1a2b);
+  border: 1px solid color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 55%, transparent);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--harbor-amber-400, #e9b75c) 35%, transparent),
+    0 14px 30px -12px rgba(0, 0, 0, 0.45);
+  animation: docsbot-coachhint-in 320ms ease-out both;
+}
+
+.docsbot-coachhint__text {
+  font-size: 0.74rem;
+  line-height: 1.3;
+  font-weight: 500;
+}
+
+.docsbot-coachhint__close {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  font-family: var(--harbor-font-mono, ui-monospace, monospace);
+  font-size: 0.9rem;
+  line-height: 1;
+  border-radius: 2px;
+  color: color-mix(in srgb, var(--harbor-ink-900, #0e1a2b) 55%, transparent);
+  transition: color 140ms ease, background 140ms ease;
+}
+.docsbot-coachhint__close:hover {
+  color: var(--harbor-ink-900, #0e1a2b);
+  background: color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 18%, transparent);
+}
+.docsbot-coachhint__close:focus-visible {
+  outline: 2px solid var(--harbor-amber-600, #c58c2b);
+  outline-offset: 1px;
+}
+
+/* Triangle pointing up at the bulb. Offset to sit under the first control. */
+.docsbot-coachhint__arrow {
+  position: absolute;
+  top: -9px;
+  /* Bulb is 26px wide, so its centre is 13px from the anchor's right edge;
+     the arrow is 16px wide, so 13 - 8 = 5 centres it under the bulb. */
+  right: 5px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 9px solid var(--harbor-paper-50, #f6efe1);
+  filter: drop-shadow(0 -1px 0 color-mix(in srgb, var(--harbor-amber-600, #c58c2b) 55%, transparent));
+}
+
+/* While the nudge is up, keep the bulb itself visibly live so the arrow
+   has an obvious target instead of pointing at a dim grey glyph. */
+.docsbot-wincontrols__btn.is-hinted {
+  color: var(--harbor-amber-400);
+  border-color: var(--harbor-amber-500);
+  background: color-mix(in srgb, var(--harbor-amber-500) 14%, transparent);
+}
+
+@keyframes docsbot-coachhint-in {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docsbot-coachhint { animation: none; }
+}
+
 .docsbot-wincontrols__btn {
   background: transparent;
   border: 1px solid var(--sl-color-hairline);

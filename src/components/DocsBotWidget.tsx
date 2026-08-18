@@ -322,6 +322,36 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
     setAttractDismissed(true);
   }, []);
 
+  // Second link in the discovery chain. The attract callout gets a reader
+  // into a call; this points at the one control that tells them what's worth
+  // asking, which is otherwise an unlabelled bulb glyph they'll never press.
+  // Its own storage key, so dismissing one nudge doesn't silence the other.
+  const COACH_HINT_KEY = "docsbot_coach_hint_dismissed";
+  const [coachHintDismissed, setCoachHintDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true; // SSR: don't render
+    try { return window.localStorage.getItem(COACH_HINT_KEY) === "1"; }
+    catch { return false; }
+  });
+  const dismissCoachHint = useCallback(() => {
+    try { window.localStorage.setItem(COACH_HINT_KEY, "1"); }
+    catch { /* non-fatal */ }
+    setCoachHintDismissed(true);
+  }, []);
+
+  // Lets anything on the page open the widget — the splash hero's "Talk to
+  // Quincy" CTA dispatches this. Mirrors a bubble click: dismiss the attract
+  // callout and restore the reader's preferred size. Deliberately does NOT
+  // dial, so the mic-permission prompt stays attached to an explicit press
+  // inside the card rather than firing from a hero button.
+  useEffect(() => {
+    const onOpenWidget = () => {
+      dismissAttract();
+      setSize(preferredSizeRef.current);
+    };
+    window.addEventListener("docsbot:open_widget", onOpenWidget);
+    return () => window.removeEventListener("docsbot:open_widget", onOpenWidget);
+  }, [dismissAttract]);
+
   // ─── SDK refs ────────────────────────────────────────────────────────────
   const clientRef = useRef<SWClient | null>(null);
   const roomRef = useRef<RoomSession | null>(null);
@@ -838,7 +868,7 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
         {attract && (
           <div className="docsbot-callout" role="status" aria-live="polite">
             <div className="docsbot-callout__eyebrow">Voice demo</div>
-            <div className="docsbot-callout__headline">Ask Quincy anything about Harbor</div>
+            <div className="docsbot-callout__headline">Try talking with Quincy</div>
             <div className="docsbot-callout__hint">
               Try: <em>“How do I verify a webhook signature?”</em>
             </div>
@@ -881,18 +911,46 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   const windowControls = (
     <div className="docsbot-wincontrols" aria-label="Widget controls">
       {size === "full" && (
-        <button
-          className={`docsbot-wincontrols__btn${demoCoachOpen ? " is-active" : ""}`}
-          aria-label={demoCoachOpen ? "Close demo prompts" : "Show demo prompts"}
-          aria-pressed={demoCoachOpen}
-          title={demoCoachOpen ? "Hide demo prompts" : "Show demo prompts"}
-          onClick={() => setDemoCoachOpen((v) => !v)}
-        >
-          {/* Lightbulb glyph for demo coach */}
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-3 11.2V16h6v-2.8A6 6 0 0 0 12 2z" />
-          </svg>
-        </button>
+        // The hint is anchored to the bulb itself, not to the control bar.
+        // Positioning it against the bar aimed its arrow at whatever control
+        // happened to sit on the right edge — which is "Minimize and end
+        // call". Wrapping the bulb gives the arrow a target that stays correct
+        // no matter how many controls the bar renders.
+        <span className="docsbot-hintanchor">
+          {!coachHintDismissed && !demoCoachOpen && (
+            <div className="docsbot-coachhint" role="status" aria-live="polite">
+              <span className="docsbot-coachhint__text">
+                Not sure what to ask? Try these.
+              </span>
+              <button
+                className="docsbot-coachhint__close"
+                aria-label="Dismiss demo prompts hint"
+                onClick={dismissCoachHint}
+              >
+                ×
+              </button>
+              <span className="docsbot-coachhint__arrow" aria-hidden="true" />
+            </div>
+          )}
+          <button
+            className={`docsbot-wincontrols__btn${demoCoachOpen ? " is-active" : ""}${
+              !coachHintDismissed && !demoCoachOpen ? " is-hinted" : ""
+            }`}
+            aria-label={demoCoachOpen ? "Close demo prompts" : "Show demo prompts"}
+            aria-pressed={demoCoachOpen}
+            title={demoCoachOpen ? "Hide demo prompts" : "Show demo prompts"}
+            onClick={() => {
+              // Pressing the bulb is proof the nudge worked — retire it.
+              dismissCoachHint();
+              setDemoCoachOpen((v) => !v);
+            }}
+          >
+            {/* Lightbulb glyph for demo coach */}
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-3 11.2V16h6v-2.8A6 6 0 0 0 12 2z" />
+            </svg>
+          </button>
+        </span>
       )}
       {size === "full" ? (
         <button

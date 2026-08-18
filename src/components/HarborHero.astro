@@ -35,23 +35,34 @@ const { title = data.title, tagline, actions = [] } = data.hero ?? {};
         <span>All systems — last 30 days · 99.998 % delivered on first try</span>
       </div>
 
-      {
-        actions.length > 0 && (
-          <div class="harbor-hero__actions">
-            {actions.map(({ attrs = {}, icon, link, text, variant }) => (
-              <LinkButton
-                {...attrs}
-                href={link}
-                variant={variant}
-                icon={icon?.name}
-                iconPlacement={icon?.html ? 'start' : 'end'}
-              >
-                {text}
-              </LinkButton>
-            ))}
-          </div>
-        )
-      }
+      <div class="harbor-hero__actions">
+        {
+          actions.map(({ attrs = {}, icon, link, text, variant }) => (
+            <LinkButton
+              {...attrs}
+              href={link}
+              variant={variant}
+              icon={icon?.name}
+              iconPlacement={icon?.html ? 'start' : 'end'}
+            >
+              {text}
+            </LinkButton>
+          ))
+        }
+
+        {/*
+          The voice demo is the entire point of this site, so it gets a slot in
+          the primary action row instead of depending on someone noticing a
+          56px bubble in the corner.
+
+          A <button>, not a LinkButton: it goes nowhere. It dispatches the same
+          event a bubble click uses, so opening the widget has one code path.
+        */}
+        <button type="button" class="harbor-hero__quincy" data-quincy-cta>
+          <span class="harbor-hero__quincy-dot" aria-hidden="true" />
+          Talk to Quincy
+        </button>
+      </div>
 
       <dl class="harbor-hero__specs">
         <div>
@@ -240,8 +251,66 @@ const { title = data.title, tagline, actions = [] } = data.hero ?? {};
   .harbor-hero__actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0.75rem;
     margin-bottom: 2.5rem;
+  }
+
+  /* Quincy CTA — deliberately a third visual register, distinct from both
+     Starlight button variants next to it: `primary` is solid amber and
+     `minimal` is bare text, so this one is outlined-amber-on-ink with a live
+     pulse. It reads as an instrument you switch on rather than a link you
+     follow, which rhymes with the TRANSMITTER · LIVE panel beside it. */
+  .harbor-hero__quincy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 1.05rem;
+    font-family: var(--harbor-font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--harbor-amber-400);
+    background: color-mix(in srgb, var(--harbor-amber-500) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--harbor-amber-500) 60%, transparent);
+    border-radius: var(--harbor-radius-md);
+    cursor: pointer;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .harbor-hero__quincy:hover {
+    color: var(--harbor-paper-50);
+    background: color-mix(in srgb, var(--harbor-amber-500) 24%, transparent);
+    border-color: var(--harbor-amber-400);
+    box-shadow: 0 0 26px -8px color-mix(in srgb, var(--harbor-amber-400) 70%, transparent);
+  }
+
+  .harbor-hero__quincy:focus-visible {
+    outline: 2px solid var(--harbor-amber-400);
+    outline-offset: 2px;
+  }
+
+  .harbor-hero__quincy-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--harbor-amber-400);
+    box-shadow: 0 0 8px 1px color-mix(in srgb, var(--harbor-amber-400) 80%, transparent);
+    animation: harbor-quincy-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes harbor-quincy-pulse {
+    0%, 100% { opacity: 0.5; transform: scale(0.85); }
+    50%      { opacity: 1;   transform: scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .harbor-hero__quincy-dot { animation: none; opacity: 1; }
   }
 
   /* Spec table — engineering factsheet */
@@ -481,3 +550,22 @@ const { title = data.title, tagline, actions = [] } = data.hero ?? {};
       );
   }
 </style>
+
+<script>
+  // Bridge the hero CTA to the DocsBot widget.
+  //
+  // Delegated from `document` rather than bound to the button, and guarded by
+  // a flag on `window`: <ClientRouter /> is enabled site-wide for the widget's
+  // transition:persist, so component scripts can re-run across client-side
+  // navigations. A direct binding would be lost when the hero is re-rendered,
+  // and an unguarded delegated listener would stack up duplicates.
+  if (!(window as any).__harborQuincyCtaBound) {
+    (window as any).__harborQuincyCtaBound = true;
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest('[data-quincy-cta]')) return;
+      window.dispatchEvent(new CustomEvent('docsbot:open_widget'));
+    });
+  }
+</script>
