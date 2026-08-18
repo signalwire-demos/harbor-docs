@@ -1,0 +1,42 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      # PUBLIC_DOCSBOT_AGENT_URL is deliberately NOT set for this build.
+      #
+      # Astro inlines PUBLIC_* vars at build time. A developer's .env points
+      # that var at an ngrok tunnel, so a build that picks it up ships a URL
+      # that only resolves on one laptop — which is exactly how production
+      # ended up calling a dead tunnel.
+      #
+      # With the var absent, DocsBotFooter.astro passes an empty agentUrl and
+      # the widget resolves it at runtime from /api/docsbot-config.json
+      # (functions/api/docsbot-config.json.ts), which reads the value from the
+      # Cloudflare Pages dashboard. Do not "fix" a missing agent URL by adding
+      # it here — set it in the dashboard instead.
+      - run: npm run build
+
+      # Uploads dist/ as static assets and compiles functions/ into the
+      # project's Pages Functions worker in the same step.
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name harbor-docs --branch main

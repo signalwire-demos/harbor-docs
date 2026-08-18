@@ -211,11 +211,54 @@ function doScrollAndFlash(el: HTMLElement) {
   window.setTimeout(() => el.classList.remove("docsbot-flash"), 1400);
 }
 
+// Runtime agent-URL lookup, served by the Cloudflare Pages Function at
+// functions/api/docsbot-config.json.ts (it reads the env var per request).
+// Module-scope so the mount effect and connect()'s just-in-time fallback
+// share one implementation. Returns "" on any failure — callers decide
+// whether an empty result is fatal.
+async function fetchAgentUrlFromConfig(): Promise<string> {
+  try {
+    const r = await fetch("/api/docsbot-config.json", { cache: "no-store" });
+    if (!r.ok) return "";
+    const j = (await r.json()) as { agentUrl?: string };
+    return (j.agentUrl ?? "").replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
+// One retry for the token handshake.
+//
+// The agent runs as a Lambda container that fetches the Harbor catalog and
+// schema over HTTPS during init, so a cold start can run long enough to
+// overrun its init budget and return a 502. Those error responses carry no
+// CORS headers, so the browser surfaces them as an opaque network failure
+// rather than a status code. Lambda re-runs init as part of the next invoke,
+// so a single retry almost always lands on a warm container.
+//
+// Only a network throw or a 5xx is retried: a 4xx is a real rejection and
+// retrying it would just double the latency before showing the error.
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  retryDelayMs = 1200,
+): Promise<Response> {
+  try {
+    const r = await fetch(url, init);
+    if (r.status < 500) return r;
+  } catch {
+    /* fall through to the retry */
+  }
+  await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+  return fetch(url, init);
+}
+
 export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
-  // Runtime agent-URL resolution — build-time `PUBLIC_DOCSBOT_AGENT_URL` is
-  // fast path; fall back to /api/docsbot-config.json (a runtime-rendered route
-  // that reads the env var at request time). This pattern works even when the
-  // static build doesn't inline PUBLIC_* correctly.
+  // Runtime agent-URL resolution — a build-time `PUBLIC_DOCSBOT_AGENT_URL`
+  // is the fast path (local dev, where .env holds the ngrok tunnel); when it's
+  // absent we ask /api/docsbot-config.json at runtime. Production builds
+  // intentionally omit the build-time var so a dev-only tunnel URL can't be
+  // baked into the deployed site.
   const [resolvedAgentUrl, setResolvedAgentUrl] = useState<string>(
     (agentUrlProp || "").replace(/\/$/, ""),
   );
@@ -223,14 +266,8 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   useEffect(() => {
     if (resolvedAgentUrl) return;
     (async () => {
-      try {
-        const r = await fetch("/api/docsbot-config.json");
-        if (!r.ok) return;
-        const j = (await r.json()) as { agentUrl?: string };
-        if (j.agentUrl) setResolvedAgentUrl(j.agentUrl.replace(/\/$/, ""));
-      } catch {
-        /* non-fatal; connect() will log a clearer error */
-      }
+      const url = await fetchAgentUrlFromConfig();
+      if (url) setResolvedAgentUrl(url);
     })();
   }, [resolvedAgentUrl]);
 
@@ -592,8 +629,19 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
 
   // ─── Connect / disconnect ────────────────────────────────────────────────
   const connect = useCallback(async () => {
-    if (!agentUrl) {
-      setErrorMsg("Agent URL not configured. Set PUBLIC_DOCSBOT_AGENT_URL.");
+    // Resolve the agent URL just in time. The mount effect has usually
+    // settled by the time anyone clicks, but a fast click on a slow
+    // connection would otherwise fail with a misleading "not configured"
+    // error when the URL was merely still in flight.
+    let activeAgentUrl = agentUrl;
+    if (!activeAgentUrl) {
+      activeAgentUrl = await fetchAgentUrlFromConfig();
+      if (activeAgentUrl) setResolvedAgentUrl(activeAgentUrl);
+    }
+    if (!activeAgentUrl) {
+      setErrorMsg(
+        "Agent URL not configured. Set PUBLIC_DOCSBOT_AGENT_URL in the Cloudflare Pages dashboard.",
+      );
       setStatus("error");
       return;
     }
@@ -602,7 +650,10 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
 
     try {
       // 1) Fetch Fabric token + SIP address + widget_token from the agent.
-      const tokenResp = await fetch(`${agentUrl}/get_token`, { headers: AGENT_HEADERS });
+      //    Retried once: this is the first call to a Lambda that may be cold.
+      const tokenResp = await fetchWithRetry(`${activeAgentUrl}/get_token`, {
+        headers: AGENT_HEADERS,
+      });
       if (!tokenResp.ok) throw new Error(`/get_token: ${tokenResp.status}`);
       const tokenData = (await tokenResp.json()) as {
         token?: string;
