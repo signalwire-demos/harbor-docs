@@ -211,6 +211,11 @@ function doScrollAndFlash(el: HTMLElement) {
   window.setTimeout(() => el.classList.remove("docsbot-flash"), 1400);
 }
 
+// Set by the splash hero's "Talk to Quincy" CTA when it is clicked before this
+// island has hydrated. Shared with src/components/HarborHero.astro — keep the
+// literal in sync with the one in that file's inline script.
+const PENDING_OPEN_KEY = "__harborQuincyPendingOpen";
+
 // Runtime agent-URL lookup, served by the Cloudflare Pages Function at
 // functions/api/docsbot-config.json.ts (it reads the env var per request).
 // Module-scope so the mount effect and connect()'s just-in-time fallback
@@ -345,10 +350,23 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   // inside the card rather than firing from a hero button.
   useEffect(() => {
     const onOpenWidget = () => {
+      // Clear the latch unconditionally so a live event and a replayed one
+      // can't both fire, and so a later remount (view transitions re-run
+      // this effect) doesn't re-open the card from a stale flag.
+      try {
+        delete (window as unknown as Record<string, unknown>)[PENDING_OPEN_KEY];
+      } catch { /* non-fatal */ }
       dismissAttract();
       setSize(preferredSizeRef.current);
     };
     window.addEventListener("docsbot:open_widget", onOpenWidget);
+    // Replay a click that happened before this island hydrated. The hero CTA
+    // is plain HTML plus a delegated listener, so it goes live well before
+    // React does; without this, the site's primary call-to-action is dead for
+    // the first few hundred ms of a cold load.
+    if ((window as unknown as Record<string, unknown>)[PENDING_OPEN_KEY]) {
+      onOpenWidget();
+    }
     return () => window.removeEventListener("docsbot:open_widget", onOpenWidget);
   }, [dismissAttract]);
 

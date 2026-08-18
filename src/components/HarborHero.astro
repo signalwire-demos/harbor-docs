@@ -565,6 +565,13 @@ const { title = data.title, tagline, actions = [] } = data.hero ?? {};
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (!target.closest('[data-quincy-cta]')) return;
+      // Latch before dispatching. This listener is live as soon as the HTML
+      // parses, but the widget is a client:load React island — so a fast
+      // click can land in the window before it hydrates, where a one-shot
+      // event has no listener and the CTA silently does nothing. The widget
+      // checks this flag on mount and clears it, so an early click is
+      // honoured late instead of lost.
+      (window as any).__harborQuincyPendingOpen = true;
       window.dispatchEvent(new CustomEvent('docsbot:open_widget'));
     });
   }
