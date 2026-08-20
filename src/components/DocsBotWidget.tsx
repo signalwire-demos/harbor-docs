@@ -211,6 +211,76 @@ function doScrollAndFlash(el: HTMLElement) {
   window.setTimeout(() => el.classList.remove("docsbot-flash"), 1400);
 }
 
+// ─── Visitor experience tier ───────────────────────────────────────────────
+// The agent opens differently for someone who has never used it than for
+// someone who has. That decision is made HERE, in code, and sent on dial —
+// the agent never infers experience level from the conversation, which it
+// cannot know on turn 1 and would guess inconsistently after.
+//
+// Storage split matters: localStorage answers "have they ever been here /
+// ever talked to Quincy", sessionStorage pins "is THIS visit their first"
+// so the tier doesn't flip from first_visit to returning as they read a
+// second page in the same sitting.
+//
+// Cleared storage or a private window reads as a first visit. That's fine —
+// the cost of being wrong is a friendlier greeting.
+const VISITOR_FIRST_SEEN = "docsbot_first_seen";
+const VISITOR_VISITS = "docsbot_visits";
+const VISITOR_CALLS = "docsbot_calls";
+const SESSION_STARTED = "docsbot_session_started";
+const SESSION_FIRST_EVER = "docsbot_session_first_ever";
+
+type VisitorTier = "first_visit" | "returning" | "veteran";
+
+function readInt(store: Storage, key: string): number {
+  const n = parseInt(store.getItem(key) ?? "0", 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Record this visit, once per session. Must run on MOUNT, not on dial.
+ *
+ * Doing the bookkeeping lazily at dial time looked equivalent and wasn't: it
+ * only ever fires for readers who start a call, so `first_seen` is never
+ * written for someone who just browses. Every later visit would then still
+ * look like their first, and the "returning, never called" tier would be
+ * unreachable — the exact reader the tiering exists to distinguish.
+ */
+function recordVisit(): void {
+  try {
+    if (sessionStorage.getItem(SESSION_STARTED)) return;
+    sessionStorage.setItem(SESSION_STARTED, "1");
+    const seenBefore = localStorage.getItem(VISITOR_FIRST_SEEN);
+    sessionStorage.setItem(SESSION_FIRST_EVER, seenBefore ? "0" : "1");
+    if (!seenBefore) {
+      localStorage.setItem(VISITOR_FIRST_SEEN, new Date().toISOString());
+    }
+    localStorage.setItem(VISITOR_VISITS, String(readInt(localStorage, VISITOR_VISITS) + 1));
+  } catch { /* storage unavailable; readVisitorProfile falls back */ }
+}
+
+/** Report the reader's experience tier. Read-only. */
+function readVisitorProfile(): { visitor_tier: VisitorTier; visits: number } {
+  try {
+    const visits = readInt(localStorage, VISITOR_VISITS);
+    // Having talked to Quincy before outranks visit count: someone who called
+    // once and came back knows what this is, however few visits ago that was.
+    if (readInt(localStorage, VISITOR_CALLS) > 0) {
+      return { visitor_tier: "veteran", visits };
+    }
+    const firstEver = sessionStorage.getItem(SESSION_FIRST_EVER) === "1";
+    return { visitor_tier: firstEver ? "first_visit" : "returning", visits };
+  } catch {
+    // Storage unavailable (private mode, blocked cookies). Treat as new.
+    return { visitor_tier: "first_visit", visits: 1 };
+  }
+}
+
+function recordCallStarted(): void {
+  try {
+    localStorage.setItem(VISITOR_CALLS, String(readInt(localStorage, VISITOR_CALLS) + 1));
+  } catch { /* non-fatal */ }
+}
+
 // Set by the splash hero's "Talk to Quincy" CTA when it is clicked before this
 // island has hydrated. Shared with src/components/HarborHero.astro — keep the
 // literal in sync with the one in that file's inline script.
@@ -348,6 +418,9 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
   // callout and restore the reader's preferred size. Deliberately does NOT
   // dial, so the mic-permission prompt stays attached to an explicit press
   // inside the card rather than firing from a hero button.
+  // Record the visit on mount so browsing counts, not just calling.
+  useEffect(() => { recordVisit(); }, []);
+
   useEffect(() => {
     const onOpenWidget = () => {
       // Clear the latch unconditionally so a live event and a replayed one
@@ -735,8 +808,13 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
         if (p?.event_type === "user_event") handleUserEvent(p.params ?? params);
       });
 
-      // 4) Dial the Fabric address with initial page context as userVariables.
+      // 4) Dial the Fabric address with initial page context and the reader's
+      //    experience tier as userVariables. on_swml_request reads these, and
+      //    a per-call config callback turns the tier into the agent's opening
+      //    move — so a first-time reader gets a concrete suggestion instead of
+      //    an open "what can I help with?".
       const initial = readPageState();
+      const visitor = readVisitorProfile();
       const room = await client.dial({
         to: tokenData.address,
         rootElement: videoContainerRef.current,
@@ -746,6 +824,7 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
         userVariables: {
           interface: "harbor-docs",
           ts: new Date().toISOString(),
+          ...visitor,
           ...initial,
         },
       });
@@ -763,6 +842,10 @@ export default function DocsBotWidget({ agentUrl: agentUrlProp }: Props) {
         if (p?.call_id) callIdRef.current = p.call_id;
         setStatus("connected");
         setCallStart(Date.now());
+        // They've now actually talked to Quincy, so later visits are veteran.
+        // Counted on call.joined rather than on click: a connect that never
+        // completes shouldn't spend their one first-visit greeting.
+        recordCallStarted();
         // Push initial page state now that we have a real call_id.
         void pushPageState();
       });
