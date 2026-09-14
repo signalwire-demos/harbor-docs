@@ -17,7 +17,6 @@
  * So production builds must deliberately NOT set PUBLIC_DOCSBOT_AGENT_URL —
  * see .github/workflows/deploy.yml.
  *
- * Mirrors Prompt Pantry's functions/api/chef-carl-config.ts.
  */
 
 interface Env {
